@@ -1,4 +1,4 @@
---// COMPLETE TOWER DEFENSE AUTO FARM - WITH FULL CHALLENGE CONFIG
+--// COMPLETE TOWER DEFENSE AUTO FARM - WITH RAID CONTROL & COUNTDOWNS
 pcall(function()
 
 --// SERVICES
@@ -68,7 +68,7 @@ gui.ResetOnSpawn = false
 gui.Parent = game:GetService("CoreGui")
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 450, 0, 650)
+mainFrame.Size = UDim2.new(0, 480, 0, 700)
 mainFrame.Position = UDim2.new(0, 10, 0, 30)
 mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 mainFrame.Parent = gui
@@ -114,8 +114,8 @@ local currentTab = "build"
 
 local function createTab(name, text, xPos)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0, 90, 0, 30)
-    btn.Position = UDim2.new(0, 5 + (xPos * 92), 0, tabY)
+    btn.Size = UDim2.new(0, 95, 0, 30)
+    btn.Position = UDim2.new(0, 5 + (xPos * 98), 0, tabY)
     btn.Text = text
     btn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
     btn.TextColor3 = Color3.new(1, 1, 1)
@@ -265,32 +265,60 @@ end)
 --// ============== CHALLENGE TAB (FULL CONFIGURATION) ==============
 local challengePanel = panels.challenge
 
+-- Current Queue Display
+local queueTitle = Instance.new("TextLabel")
+queueTitle.Size = UDim2.new(1, -20, 0, 25)
+queueTitle.Text = "📋 CURRENT CHALLENGE QUEUE"
+queueTitle.TextColor3 = Color3.new(1, 1, 0)
+queueTitle.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+queueTitle.Parent = challengePanel
+
+local queueDisplay = Instance.new("TextLabel")
+queueDisplay.Size = UDim2.new(1, -20, 0, 60)
+queueDisplay.Text = "No challenges enabled"
+queueDisplay.TextColor3 = Color3.new(0.7, 0.7, 0.7)
+queueDisplay.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+queueDisplay.TextWrapped = true
+queueDisplay.TextXAlignment = Enum.TextXAlignment.Left
+queueDisplay.Parent = challengePanel
+
+-- Status display
 local challengeStatus = Instance.new("TextLabel")
-challengeStatus.Size = UDim2.new(1, -20, 0, 45)
-challengeStatus.Text = "Challenge Status: Idle"
+challengeStatus.Size = UDim2.new(1, -20, 0, 40)
+challengeStatus.Text = "Status: Idle"
 challengeStatus.TextColor3 = Color3.new(1, 1, 1)
 challengeStatus.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-challengeStatus.TextWrapped = true
 challengeStatus.Parent = challengePanel
 
-local challengeTimer = Instance.new("TextLabel")
-challengeTimer.Size = UDim2.new(1, -20, 0, 30)
-challengeTimer.Text = "Next: --:--"
-challengeTimer.TextColor3 = Color3.new(1, 0.8, 0)
-challengeTimer.BackgroundTransparency = 1
-challengeTimer.Parent = challengePanel
+-- Countdown display
+local countdownDisplay = Instance.new("TextLabel")
+countdownDisplay.Size = UDim2.new(1, -20, 0, 40)
+countdownDisplay.Text = "Next: --:--"
+countdownDisplay.TextColor3 = Color3.new(1, 0.8, 0)
+countdownDisplay.TextSize = 18
+countdownDisplay.Font = Enum.Font.GothamBold
+countdownDisplay.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+countdownDisplay.Parent = challengePanel
+
+-- Order display (shows current and next)
+local orderDisplay = Instance.new("TextLabel")
+orderDisplay.Size = UDim2.new(1, -20, 0, 35)
+orderDisplay.Text = "Current: None | Next: None"
+orderDisplay.TextColor3 = Color3.new(0.5, 0.8, 1)
+orderDisplay.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+orderDisplay.Parent = challengePanel
 
 -- Challenge order list title
 local orderTitle = Instance.new("TextLabel")
 orderTitle.Size = UDim2.new(1, -20, 0, 25)
-orderTitle.Text = "📋 CHALLENGE ORDER (Tap to enable, arrows to reorder)"
+orderTitle.Text = "⚙️ CHALLENGE CONFIGURATION (Tap to enable, arrows to reorder)"
 orderTitle.TextColor3 = Color3.new(1, 1, 0)
 orderTitle.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
 orderTitle.Parent = challengePanel
 
 -- Scroll frame for challenges
 local challengeScroll = Instance.new("ScrollingFrame")
-challengeScroll.Size = UDim2.new(1, -20, 0, 220)
+challengeScroll.Size = UDim2.new(1, -20, 0, 200)
 challengeScroll.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 challengeScroll.Parent = challengePanel
 
@@ -312,6 +340,27 @@ end
 
 -- Create UI elements for each challenge
 local challengeFrames = {}
+
+local function updateQueueDisplay()
+    local enabledList = {}
+    for _, ch in ipairs(challengeOrder) do
+        if ch.enabled then
+            local mins = math.floor(ch.interval / 60)
+            local secs = ch.interval % 60
+            table.insert(enabledList, string.format("%s (%d:%02d)", ch.name, mins, secs))
+        end
+    end
+    
+    if #enabledList == 0 then
+        queueDisplay.Text = "❌ No challenges enabled"
+    else
+        local text = ""
+        for i, ch in ipairs(enabledList) do
+            text = text .. i .. ". " .. ch .. "\n"
+        end
+        queueDisplay.Text = text
+    end
+end
 
 local function refreshChallengeUI()
     -- Clear existing
@@ -395,12 +444,14 @@ local function refreshChallengeUI()
                 enableBtn.Text = "❌ " .. challengeOrder[index].name
                 enableBtn.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
             end
+            updateQueueDisplay()
         end)
         
         intervalBox:GetPropertyChangedSignal("Text"):Connect(function()
             local val = tonumber(intervalBox.Text)
             if val and val > 0 then
                 challengeOrder[index].interval = val
+                updateQueueDisplay()
             end
         end)
         
@@ -408,6 +459,7 @@ local function refreshChallengeUI()
             if index > 1 then
                 challengeOrder[index], challengeOrder[index-1] = challengeOrder[index-1], challengeOrder[index]
                 refreshChallengeUI()
+                updateQueueDisplay()
             end
         end)
         
@@ -415,14 +467,17 @@ local function refreshChallengeUI()
             if index < #challengeOrder then
                 challengeOrder[index], challengeOrder[index+1] = challengeOrder[index+1], challengeOrder[index]
                 refreshChallengeUI()
+                updateQueueDisplay()
             end
         end)
         
         removeBtn.MouseButton1Click:Connect(function()
             table.remove(challengeOrder, index)
             refreshChallengeUI()
+            updateQueueDisplay()
         end)
     end
+    updateQueueDisplay()
 end
 
 -- Add new challenge dropdown
@@ -529,6 +584,21 @@ autoChallengeToggle.TextColor3 = Color3.new(1, 1, 1)
 autoChallengeToggle.Font = Enum.Font.GothamBold
 autoChallengeToggle.Parent = challengePanel
 
+-- Auto Raid Control
+local autoRaidAfterChallenge = true
+local autoRaidToggle = Instance.new("TextButton")
+autoRaidToggle.Size = UDim2.new(1, -20, 0, 40)
+autoRaidToggle.Text = "🏠 Auto Raid After Challenge: ✅ ON (5 min)"
+autoRaidToggle.BackgroundColor3 = Color3.fromRGB(50, 100, 50)
+autoRaidToggle.TextColor3 = Color3.new(1, 1, 1)
+autoRaidToggle.Parent = challengePanel
+
+autoRaidToggle.MouseButton1Click:Connect(function()
+    autoRaidAfterChallenge = not autoRaidAfterChallenge
+    autoRaidToggle.Text = autoRaidAfterChallenge and "🏠 Auto Raid After Challenge: ✅ ON (5 min)" or "🏠 Auto Raid After Challenge: ❌ OFF"
+    autoRaidToggle.BackgroundColor3 = autoRaidAfterChallenge and Color3.fromRGB(50, 100, 50) or Color3.fromRGB(70, 50, 50)
+end)
+
 -- UI Detection Functions
 local function findCooldownTimer()
     local pg = player:FindFirstChild("PlayerGui")
@@ -571,6 +641,13 @@ local function startSpecificChallenge(challengeId)
     end)
 end
 
+local function turnOffAutoRaid()
+    pcall(function()
+        changeSetting:InvokeServer("AutoRaid", "Off")
+        print("[Auto Raid] Turned OFF")
+    end)
+end
+
 -- Main Auto Challenge Loop
 local function runAutoChallenge()
     task.spawn(function()
@@ -585,41 +662,69 @@ local function runAutoChallenge()
             
             if #enabledList == 0 then
                 challengeStatus.Text = "Status: No challenges enabled!"
+                countdownDisplay.Text = "Next: ---"
                 task.wait(5)
             else
-                for _, challenge in ipairs(enabledList) do
+                for currentIndex, challenge in ipairs(enabledList) do
                     if not autoChallengeActive then break end
                     
+                    -- Update order display
+                    local nextName = "None"
+                    if currentIndex < #enabledList then
+                        nextName = enabledList[currentIndex + 1].name
+                    elseif #enabledList > 0 then
+                        nextName = enabledList[1].name
+                    end
+                    orderDisplay.Text = string.format("📍 Current: %s | ➡️ Next: %s", challenge.name, nextName)
+                    
                     -- Wait for cooldown
-                    challengeStatus.Text = "Status: Waiting for cooldown - " .. challenge.name
+                    challengeStatus.Text = "⏳ Waiting for cooldown - " .. challenge.name
                     local cooldownEnded = false
                     while autoChallengeActive and not cooldownEnded do
                         local timer = findCooldownTimer()
                         if timer then
                             local timeText = timer.Text
-                            challengeTimer.Text = "Cooldown: " .. timeText
+                            countdownDisplay.Text = "⏰ Cooldown: " .. timeText
                             if timeText == "00:00" or timeText == "0:00" then
                                 cooldownEnded = true
                             end
                         else
-                            challengeTimer.Text = "Cooldown: --- (Open challenge menu)"
+                            countdownDisplay.Text = "⚠️ Open Challenge Menu"
                         end
                         task.wait(1)
                     end
                     
                     if autoChallengeActive then
-                        challengeStatus.Text = "Status: Starting " .. challenge.name
-                        challengeTimer.Text = "Running: " .. challenge.name
+                        -- Start the challenge
+                        challengeStatus.Text = "🚀 Starting " .. challenge.name
+                        countdownDisplay.Text = "🏃 Running: " .. challenge.name
                         startSpecificChallenge(challenge.id)
                         
+                        -- Wait for the interval with countdown
                         local waitTime = challenge.interval
                         for i = waitTime, 1, -1 do
                             if not autoChallengeActive then break end
+                            local mins = math.floor(i / 60)
+                            local secs = i % 60
+                            countdownDisplay.Text = string.format("⏱️ Next challenge in: %02d:%02d", mins, secs)
                             if i % 30 == 0 or i <= 10 then
-                                challengeTimer.Text = string.format("Next: %02d:%02d", math.floor(i/60), i%60)
-                                challengeStatus.Text = string.format("Status: %s - Next in %d:%02d", challenge.name, math.floor(i/60), i%60)
+                                challengeStatus.Text = string.format("✅ %s complete - Next in %d:%02d", challenge.name, mins, secs)
                             end
                             task.wait(1)
+                        end
+                        
+                        -- Turn off Auto Raid after challenge (wait 5 minutes then turn off)
+                        if autoRaidAfterChallenge then
+                            challengeStatus.Text = "🛑 Turning off Auto Raid in 5 minutes..."
+                            for i = 300, 1, -1 do
+                                if not autoChallengeActive then break end
+                                local mins = math.floor(i / 60)
+                                local secs = i % 60
+                                countdownDisplay.Text = string.format("🔴 Auto Raid OFF in: %02d:%02d", mins, secs)
+                                challengeStatus.Text = string.format("⏳ Auto Raid will turn off in %d:%02d", mins, secs)
+                                task.wait(1)
+                            end
+                            turnOffAutoRaid()
                         end
                     end
                 end
@@ -636,7 +741,8 @@ autoChallengeToggle.MouseButton1Click:Connect(function()
         runAutoChallenge()
     else
         challengeStatus.Text = "Challenge Status: Idle"
-        challengeTimer.Text = "Next: --:--"
+        countdownDisplay.Text = "Next: --:--"
+        orderDisplay.Text = "Current: None | Next: None"
     end
 end)
 
@@ -783,6 +889,9 @@ print("Features:")
 print("  🏗️ Build - Easter (4 towers) & Mega Raid (5 towers)")
 print("  🛒 Auto Buy - Select items, buys every 1 second")
 print("  🎯 Challenge - FULL CONFIG: Order, Enable/Disable, Custom Intervals")
+print("  🎯 Auto Raid - Turns OFF Auto Raid 5 minutes after each challenge")
+print("  🎯 Countdowns - Shows time until next challenge")
+print("  🎯 Queue Display - Shows current challenge order")
 print("  ⏰ Schedule - Easter at :15 & :45, Mega at :00")
 
 end)
