@@ -1,22 +1,141 @@
---// ULTIMATE ORB FARMER - MOBILE FIXED (No GUI issues)
+--// ULTIMATE ORB FARMER - WITH WORKING MOBILE GUI
+
+pcall(function()
 
 local player = game:GetService("Players").LocalPlayer
 local collectRemote = game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Remotes"):WaitForChild("CollectOrb")
 
--- Simple console output (no GUI)
-print("==========================================")
-print("     ULTIMATE ORB FARMER - MOBILE")
-print("==========================================")
+-- Create GUI on StarterGui instead (more reliable on mobile)
+local gui = Instance.new("ScreenGui")
+gui.Name = "OrbFarmer"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")  -- Changed from CoreGui to PlayerGui
 
--- Check if remote exists
-if not collectRemote then
-    print("[ERROR] CollectOrb remote not found!")
-    return
-else
-    print("[✓] CollectOrb remote found!")
+-- Main frame
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 320, 0, 400)
+mainFrame.Position = UDim2.new(0.5, -160, 0.5, -200)
+mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+mainFrame.BorderSizePixel = 2
+mainFrame.BorderColor3 = Color3.fromRGB(100, 200, 100)
+mainFrame.Parent = gui
+mainFrame.Active = true
+mainFrame.Draggable = true
+
+-- Title bar (for dragging)
+local titleBar = Instance.new("Frame")
+titleBar.Size = UDim2.new(1, 0, 0, 35)
+titleBar.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+titleBar.Parent = mainFrame
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -40, 1, 0)
+title.Position = UDim2.new(0, 10, 0, 0)
+title.Text = "🔮 ORB FARMER"
+title.TextColor3 = Color3.new(0.5, 0.8, 1)
+title.TextSize = 16
+title.Font = Enum.Font.GothamBold
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.BackgroundTransparency = 1
+title.Parent = titleBar
+
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 30, 0, 30)
+closeBtn.Position = UDim2.new(1, -35, 0, 3)
+closeBtn.Text = "✕"
+closeBtn.TextSize = 16
+closeBtn.BackgroundColor3 = Color3.fromRGB(100, 50, 50)
+closeBtn.TextColor3 = Color3.new(1, 1, 1)
+closeBtn.Parent = titleBar
+
+-- Status display
+local statusFrame = Instance.new("Frame")
+statusFrame.Size = UDim2.new(1, -20, 0, 50)
+statusFrame.Position = UDim2.new(0, 10, 0, 45)
+statusFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+statusFrame.Parent = mainFrame
+
+local statusText = Instance.new("TextLabel")
+statusText.Size = UDim2.new(1, -10, 0.6, 0)
+statusText.Position = UDim2.new(0, 5, 0, 5)
+statusText.Text = "Status: IDLE"
+statusText.TextColor3 = Color3.new(1, 1, 0)
+statusText.TextSize = 14
+statusText.Font = Enum.Font.GothamBold
+statusText.BackgroundTransparency = 1
+statusText.Parent = statusFrame
+
+local statsText = Instance.new("TextLabel")
+statsText.Size = UDim2.new(1, -10, 0.4, 0)
+statsText.Position = UDim2.new(0, 5, 0, 30)
+statsText.Text = "Session: 0 | Rate: 0/min"
+statsText.TextColor3 = Color3.new(0.7, 0.7, 0.7)
+statsText.TextSize = 11
+statsText.BackgroundTransparency = 1
+statsText.Parent = statusFrame
+
+-- Currency displays
+local currencies = {"Gems", "Coins", "Easter Eggs"}
+local currencyLabels = {}
+local yPos = 105
+
+for _, currency in ipairs(currencies) do
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, -20, 0, 45)
+    frame.Position = UDim2.new(0, 10, 0, yPos)
+    frame.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+    frame.Parent = mainFrame
+    
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Size = UDim2.new(0.4, -5, 1, 0)
+    nameLabel.Position = UDim2.new(0, 5, 0, 0)
+    nameLabel.Text = currency
+    nameLabel.TextColor3 = Color3.new(1, 1, 1)
+    nameLabel.TextSize = 12
+    nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.Parent = frame
+    
+    local valueLabel = Instance.new("TextLabel")
+    valueLabel.Size = UDim2.new(0.6, -5, 1, 0)
+    valueLabel.Position = UDim2.new(0.4, 0, 0, 0)
+    valueLabel.Text = "0"
+    valueLabel.TextColor3 = Color3.new(0.5, 0.8, 1)
+    valueLabel.TextSize = 12
+    valueLabel.TextXAlignment = Enum.TextXAlignment.Right
+    valueLabel.BackgroundTransparency = 1
+    valueLabel.Parent = frame
+    
+    currencyLabels[currency] = valueLabel
+    yPos = yPos + 55
 end
 
--- Get current currency to verify
+-- Buttons
+local startBtn = Instance.new("TextButton")
+startBtn.Size = UDim2.new(0.45, -5, 0, 40)
+startBtn.Position = UDim2.new(0, 10, 0, yPos)
+startBtn.Text = "▶ START"
+startBtn.TextSize = 14
+startBtn.BackgroundColor3 = Color3.fromRGB(50, 100, 50)
+startBtn.TextColor3 = Color3.new(1, 1, 1)
+startBtn.Parent = mainFrame
+
+local stopBtn = Instance.new("TextButton")
+stopBtn.Size = UDim2.new(0.45, -5, 0, 40)
+stopBtn.Position = UDim2.new(0.52, 0, 0, yPos)
+stopBtn.Text = "⏹ STOP"
+stopBtn.TextSize = 14
+stopBtn.BackgroundColor3 = Color3.fromRGB(100, 50, 50)
+stopBtn.TextColor3 = Color3.new(1, 1, 1)
+stopBtn.Parent = mainFrame
+
+-- Farming variables
+local farming = false
+local farmingThread = nil
+local sessionCount = 0
+local startTime = 0
+
+-- Get currency function
 local function getCurrency(currencyName)
     local leaderstats = player:FindFirstChild("leaderstats")
     if leaderstats then
@@ -28,122 +147,103 @@ local function getCurrency(currencyName)
     return 0
 end
 
-print("[✓] Current Gems:", getCurrency("Gems"))
-print("[✓] Current Coins:", getCurrency("Coins"))
-print("[✓] Current Easter Eggs:", getCurrency("Easter Eggs"))
-
--- Test a single collect first
-print("\n[TEST] Single orb collect...")
-local beforeGems = getCurrency("Gems")
-pcall(function()
-    collectRemote:FireServer(2, "Gems", true)
-end)
-task.wait(1)
-local afterGems = getCurrency("Gems")
-
-if afterGems > beforeGems then
-    print("[✓] SUCCESS! Gems increased by", afterGems - beforeGems)
-else
-    print("[✗] FAILED! Gems did not increase")
-    print("    Make sure you're in a raid/orb event!")
+-- Update display
+local function updateDisplay()
+    for currency, label in pairs(currencyLabels) do
+        local amount = getCurrency(currency)
+        if currency == "Coins" then
+            if amount >= 1000000 then
+                label.Text = string.format("%.1fM", amount / 1000000)
+            elseif amount >= 1000 then
+                label.Text = string.format("%.1fK", amount / 1000)
+            else
+                label.Text = tostring(amount)
+            end
+        else
+            label.Text = tostring(amount)
+        end
+    end
+    
+    local elapsed = tick() - startTime
+    local rate = elapsed > 0 and (sessionCount / elapsed * 60) or 0
+    statsText.Text = string.format("Session: %d | Rate: %.1f/min", sessionCount, rate)
 end
 
--- Simple farming loop (no GUI)
-local farming = false
-local sessionCount = 0
-
+-- Main farming loop
 local function startFarming()
     if farming then
-        print("[!] Already farming!")
+        statusText.Text = "Status: ALREADY RUNNING"
         return
     end
     
     farming = true
-    print("\n[START] Farming started!")
-    print("Press Ctrl+C to stop (or use stop command)")
+    sessionCount = 0
+    startTime = tick()
+    statusText.Text = "Status: 🟢 FARMING"
+    statusText.TextColor3 = Color3.new(0.3, 1, 0.3)
     
-    while farming do
-        -- Try to collect gems
-        local beforeGems = getCurrency("Gems")
-        pcall(function()
-            collectRemote:FireServer(2, "Gems", true)
-        end)
-        task.wait(1.5)
-        
-        local afterGems = getCurrency("Gems")
-        local gained = afterGems - beforeGems
-        
-        if gained > 0 then
-            sessionCount = sessionCount + 1
-            print(string.format("[✓] +%d Gems (Total this session: %d)", gained, sessionCount))
-        else
-            print("[✗] No gems gained - rate limited?")
+    farmingThread = task.spawn(function()
+        while farming do
+            -- Collect Gems
+            local before = getCurrency("Gems")
+            pcall(function()
+                collectRemote:FireServer(2, "Gems", true)
+            end)
+            task.wait(0.5)
+            local after = getCurrency("Gems")
+            
+            if after > before then
+                sessionCount = sessionCount + 1
+                updateDisplay()
+            end
+            
+            -- Collect Coins
+            pcall(function()
+                collectRemote:FireServer(18667, "Coins", true)
+            end)
+            task.wait(0.5)
+            
+            -- Collect Easter Eggs
+            pcall(function()
+                collectRemote:FireServer(5, "EasterEggs", true)
+            end)
+            task.wait(0.5)
+            
+            updateDisplay()
         end
-        
-        -- Try coins
-        local beforeCoins = getCurrency("Coins")
-        pcall(function()
-            collectRemote:FireServer(18667, "Coins", true)
-        end)
-        task.wait(1)
-        
-        local afterCoins = getCurrency("Coins")
-        local coinGain = afterCoins - beforeCoins
-        if coinGain > 0 then
-            print(string.format("[✓] +%d Coins", coinGain))
-        end
-        
-        -- Show stats every 10 cycles
-        if sessionCount % 10 == 0 then
-            print(string.format("\n[STATS] Gems: %d | Coins: %d | Eggs: %d", 
-                getCurrency("Gems"), getCurrency("Coins"), getCurrency("Easter Eggs")))
-        end
-    end
+    end)
 end
 
 local function stopFarming()
     farming = false
-    print("\n[STOP] Farming stopped!")
-    print("Total collects this session:", sessionCount)
+    if farmingThread then
+        task.cancel(farmingThread)
+        farmingThread = nil
+    end
+    statusText.Text = "Status: ⚪ IDLE"
+    statusText.TextColor3 = Color3.new(1, 1, 0)
+    updateDisplay()
 end
 
--- Simple commands
-print("\n==========================================")
-print("COMMANDS:")
-print("  startfarming() - Start farming")
-print("  stopfarming()  - Stop farming")
-print("  status()       - Show current stats")
+-- Button connections
+startBtn.MouseButton1Click:Connect(startFarming)
+stopBtn.MouseButton1Click:Connect(stopFarming)
+closeBtn.MouseButton1Click:Connect(function()
+    stopFarming()
+    gui:Destroy()
+end)
+
+-- Initial update
+updateDisplay()
+
+print("==========================================")
+print("   ORB FARMER GUI LOADED!")
+print("   Look for the window on your screen")
+print("   Drag the title bar to move it")
 print("==========================================")
 
-function status()
-    print(string.format("\n[STATUS] Gems: %d | Coins: %d | Easter Eggs: %d", 
-        getCurrency("Gems"), getCurrency("Coins"), getCurrency("Easter Eggs")))
-end
+-- Try to make GUI visible on top
+gui.Enabled = true
+mainFrame.Visible = true
 
--- Try to find why orbs aren't working
-print("\n[CHECK] Are you in a raid? Orbs only spawn during raids!")
-print("[CHECK] Try joining an active raid or event first!")
-
--- Optional: Auto-detect if in raid
-local function checkRaidStatus()
-    local workspace = game:GetService("Workspace")
-    local plots = {"CommunityPlot", "EventPlot", "RaftPlot"}
-    
-    for _, plotName in ipairs(plots) do
-        local plot = workspace:FindFirstChild(plotName)
-        if plot then
-            local raidStuff = plot:FindFirstChild("RaidStuff")
-            if raidStuff then
-                local raidActive = raidStuff:FindFirstChild("RaidActive")
-                if raidActive and raidActive.Value then
-                    print("[✓] Raid ACTIVE in", plotName)
-                    return true
-                end
-            end
-        end
-    end
-    print("[!] No active raid found!")
-    return false
-end
-
-checkRaidStatus()
+end)
