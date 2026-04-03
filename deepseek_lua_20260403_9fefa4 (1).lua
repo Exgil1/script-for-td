@@ -1,4 +1,6 @@
---// COMPLETE TOWER DEFENSE AUTO FARM - WITH AUTO RAID TOGGLE
+--// COMPLETE TOWER DEFENSE AUTO FARM - FULL WORKING VERSION
+--// Features: Auto Build, Auto Buy, Auto Challenge, Schedule, Auto-Save Config, Manual Controls
+
 pcall(function()
 
 --// SERVICES
@@ -7,122 +9,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local player = Players.LocalPlayer
 local HttpService = game:GetService("HttpService")
 
---// CONFIGURATION SAVE SYSTEM
-local configName = "TD_Auto_Farm_Config"
-local savedConfig = nil
-
-local function loadConfig()
-    local success, data = pcall(function()
-        return HttpService:JSONDecode(readfile(configName .. ".json"))
-    end)
-    if success and data then
-        savedConfig = data
-        print("[Config] Loaded saved configuration")
-        return true
-    end
-    print("[Config] No saved configuration found, using defaults")
-    return false
-end
-
-local function saveConfig()
-    local config = {
-        version = 3,
-        savedAt = os.date("%Y-%m-%d %H:%M:%S"),
-        challengeOrder = {},
-        selectedItems = {},
-        autoBuyEnabled = autoBuyActive,
-        autoRaidAfterChallenge = autoRaidAfterChallenge,
-        autoRaidEnabled = autoRaidActive,
-        autoRaidWaitTime = autoRaidWaitTime,
-        autoChallengeEnabled = autoChallengeActive
-    }
-    
-    for _, ch in ipairs(challengeOrder) do
-        table.insert(config.challengeOrder, {
-            name = ch.name,
-            id = ch.id,
-            interval = ch.interval,
-            enabled = ch.enabled
-        })
-    end
-    
-    for item, _ in pairs(selectedItems) do
-        table.insert(config.selectedItems, item)
-    end
-    
-    local success, encoded = pcall(function()
-        return HttpService:JSONEncode(config)
-    end)
-    
-    if success then
-        pcall(function()
-            writefile(configName .. ".json", encoded)
-            print("[Config] Saved successfully")
-            if saveStatus then
-                saveStatus.Text = "✅ Config saved at " .. os.date("%H:%M:%S")
-                task.wait(2)
-                saveStatus.Text = "Ready"
-            end
-        end)
-    end
-end
-
-local function applyConfig()
-    if not savedConfig then return false end
-    
-    if savedConfig.challengeOrder and #savedConfig.challengeOrder > 0 then
-        challengeOrder = {}
-        for _, ch in ipairs(savedConfig.challengeOrder) do
-            table.insert(challengeOrder, {
-                name = ch.name,
-                id = ch.id,
-                interval = ch.interval,
-                enabled = ch.enabled
-            })
-        end
-        refreshChallengeUI()
-        updateQueueDisplay()
-    end
-    
-    if savedConfig.selectedItems then
-        for _, itemName in ipairs(savedConfig.selectedItems) do
-            selectedItems[itemName] = true
-            local btn = itemButtons[itemName]
-            if btn then
-                btn.Text = btn.Text:gsub("%[ %]","[X]")
-            end
-        end
-    end
-    
-    autoRaidAfterChallenge = savedConfig.autoRaidAfterChallenge ~= nil and savedConfig.autoRaidAfterChallenge or true
-    if autoRaidAfterToggle then
-        autoRaidAfterToggle.Text = autoRaidAfterChallenge and "🏠 Auto Raid AFTER each challenge: ✅ ON" or "🏠 Auto Raid AFTER each challenge: ❌ OFF"
-        autoRaidAfterToggle.BackgroundColor3 = autoRaidAfterChallenge and Color3.fromRGB(50, 100, 50) or Color3.fromRGB(70, 50, 50)
-    end
-    
-    autoRaidActive = savedConfig.autoRaidEnabled or false
-    autoRaidWaitTime = savedConfig.autoRaidWaitTime or 300
-    if autoRaidToggle then
-        autoRaidToggle.Text = autoRaidActive and "🏠 Auto Raid AFTER LAST: ✅ ON (Wait " .. math.floor(autoRaidWaitTime/60) .. " min)" or "🏠 Auto Raid AFTER LAST: ❌ OFF"
-        autoRaidToggle.BackgroundColor3 = autoRaidActive and Color3.fromRGB(50, 100, 50) or Color3.fromRGB(70, 50, 50)
-    end
-    
-    if savedConfig.autoBuyEnabled and not autoBuyActive then
-        autoBuyActive = true
-        autoBuyToggle.Text = "🔴 AUTO BUY (1s): ON"
-        autoBuyToggle.BackgroundColor3 = Color3.fromRGB(50, 100, 50)
-        autoBuyLoop()
-    end
-    
-    if savedConfig.autoChallengeEnabled and not autoChallengeActive then
-        autoChallengeActive = true
-        autoChallengeToggle.Text = "🎯 AUTO CHALLENGE: ON"
-        autoChallengeToggle.BackgroundColor3 = Color3.fromRGB(50, 100, 50)
-        runAutoChallenge()
-    end
-    
-    return true
-end
+--// GLOBAL VARIABLES
+local isFirstRun = true
+local autoRaidTriggered = false
 
 --// REMOTES
 local events = ReplicatedStorage:WaitForChild("Events")
@@ -155,7 +44,7 @@ local megaRaidBuildStructures = {
     {id = "Flamespitter{5c2cf563-40ae-4c75-9881-9e97f9b8cd66}", pos = Vector3.new(1537.6004638671875, 8.505999565124512, 1189.6143798828125), rot = 90}
 }
 
---// ITEMS
+--// ITEMS FOR AUTO BUY
 local items = {
     ["Bunny Cannon"]="E",["Bunny Bow"]="E",["Egg Launcher"]="E",
     ["Bunny Bomb Tower"]="E",["Egg Beam"]="E",
@@ -179,14 +68,14 @@ local allChallenges = {
     {name = "Godly Challenge", id = "Godly Challenge"}
 }
 
---// GUI
+--// ============== GUI ==============
 local gui = Instance.new("ScreenGui")
 gui.Name = "TDAutoFarm"
 gui.ResetOnSpawn = false
 gui.Parent = game:GetService("CoreGui")
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 500, 0, 780)
+mainFrame.Size = UDim2.new(0, 500, 0, 850)
 mainFrame.Position = UDim2.new(0, 10, 0, 30)
 mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 mainFrame.Parent = gui
@@ -338,6 +227,7 @@ for name, typ in pairs(items) do
             btn.Text = btn.Text:gsub("%[X%]","[ ]")
             selectedItems[name] = nil
         end
+        autoSaveConfig()
     end)
 end
 
@@ -380,6 +270,7 @@ autoBuyToggle.MouseButton1Click:Connect(function()
     autoBuyToggle.Text = autoBuyActive and "🔴 AUTO BUY (1s): ON" or "🟢 AUTO BUY (1s): OFF"
     autoBuyToggle.BackgroundColor3 = autoBuyActive and Color3.fromRGB(50, 100, 50) or Color3.fromRGB(70, 50, 50)
     if autoBuyActive then autoBuyLoop() end
+    autoSaveConfig()
 end)
 
 --// ============== CHALLENGE TAB ==============
@@ -433,7 +324,6 @@ raidTitle.TextColor3 = Color3.new(1, 1, 0)
 raidTitle.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
 raidTitle.Parent = challengePanel
 
--- Toggle 1: Auto Raid AFTER EACH challenge
 local autoRaidAfterChallenge = true
 local autoRaidAfterToggle = Instance.new("TextButton")
 autoRaidAfterToggle.Size = UDim2.new(1, -20, 0, 40)
@@ -442,9 +332,8 @@ autoRaidAfterToggle.BackgroundColor3 = Color3.fromRGB(50, 100, 50)
 autoRaidAfterToggle.TextColor3 = Color3.new(1, 1, 1)
 autoRaidAfterToggle.Parent = challengePanel
 
--- Toggle 2: Auto Raid AFTER LAST challenge (with wait time)
 local autoRaidActive = false
-local autoRaidWaitTime = 300 -- 5 minutes default
+local autoRaidWaitTime = 300
 local autoRaidToggle = Instance.new("TextButton")
 autoRaidToggle.Size = UDim2.new(0.7, -5, 0, 40)
 autoRaidToggle.Text = "🏠 Auto Raid AFTER LAST: ❌ OFF"
@@ -452,7 +341,6 @@ autoRaidToggle.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
 autoRaidToggle.TextColor3 = Color3.new(1, 1, 1)
 autoRaidToggle.Parent = challengePanel
 
--- Wait time input for auto raid
 local raidWaitBox = Instance.new("TextBox")
 raidWaitBox.Size = UDim2.new(0.27, -5, 0, 40)
 raidWaitBox.Position = UDim2.new(0.71, 0, 0, 0)
@@ -467,10 +355,25 @@ raidWaitBox:GetPropertyChangedSignal("Text"):Connect(function()
     if val and val > 0 then
         autoRaidWaitTime = val
         autoRaidToggle.Text = autoRaidActive and "🏠 Auto Raid AFTER LAST: ✅ ON (Wait " .. math.floor(autoRaidWaitTime/60) .. " min)" or "🏠 Auto Raid AFTER LAST: ❌ OFF"
+        autoSaveConfig()
     end
 end)
 
--- Challenge order list title
+autoRaidAfterToggle.MouseButton1Click:Connect(function()
+    autoRaidAfterChallenge = not autoRaidAfterChallenge
+    autoRaidAfterToggle.Text = autoRaidAfterChallenge and "🏠 Auto Raid AFTER each challenge: ✅ ON" or "🏠 Auto Raid AFTER each challenge: ❌ OFF"
+    autoRaidAfterToggle.BackgroundColor3 = autoRaidAfterChallenge and Color3.fromRGB(50, 100, 50) or Color3.fromRGB(70, 50, 50)
+    autoSaveConfig()
+end)
+
+autoRaidToggle.MouseButton1Click:Connect(function()
+    autoRaidActive = not autoRaidActive
+    autoRaidToggle.Text = autoRaidActive and "🏠 Auto Raid AFTER LAST: ✅ ON (Wait " .. math.floor(autoRaidWaitTime/60) .. " min)" or "🏠 Auto Raid AFTER LAST: ❌ OFF"
+    autoRaidToggle.BackgroundColor3 = autoRaidActive and Color3.fromRGB(50, 100, 50) or Color3.fromRGB(70, 50, 50)
+    autoSaveConfig()
+end)
+
+-- Challenge Configuration Title
 local orderTitle = Instance.new("TextLabel")
 orderTitle.Size = UDim2.new(1, -20, 0, 25)
 orderTitle.Text = "⚙️ CHALLENGE CONFIGURATION"
@@ -479,7 +382,7 @@ orderTitle.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
 orderTitle.Parent = challengePanel
 
 local challengeScroll = Instance.new("ScrollingFrame")
-challengeScroll.Size = UDim2.new(1, -20, 0, 160)
+challengeScroll.Size = UDim2.new(1, -20, 0, 180)
 challengeScroll.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 challengeScroll.Parent = challengePanel
 
@@ -489,7 +392,6 @@ challengeLayout.Parent = challengeScroll
 -- Store challenge order data
 local challengeOrder = {}
 
--- Initialize with default order
 for i, ch in ipairs(allChallenges) do
     challengeOrder[i] = {
         name = ch.name,
@@ -584,6 +486,7 @@ local function refreshChallengeUI()
             enableBtn.Text = challengeOrder[index].enabled and "✅ " .. challengeOrder[index].name or "❌ " .. challengeOrder[index].name
             enableBtn.BackgroundColor3 = challengeOrder[index].enabled and Color3.fromRGB(50, 100, 50) or Color3.fromRGB(70, 50, 50)
             updateQueueDisplay()
+            autoSaveConfig()
         end)
         
         intervalBox:GetPropertyChangedSignal("Text"):Connect(function()
@@ -591,6 +494,7 @@ local function refreshChallengeUI()
             if val and val > 0 then
                 challengeOrder[index].interval = val
                 updateQueueDisplay()
+                autoSaveConfig()
             end
         end)
         
@@ -599,6 +503,7 @@ local function refreshChallengeUI()
                 challengeOrder[index], challengeOrder[index-1] = challengeOrder[index-1], challengeOrder[index]
                 refreshChallengeUI()
                 updateQueueDisplay()
+                autoSaveConfig()
             end
         end)
         
@@ -607,6 +512,7 @@ local function refreshChallengeUI()
                 challengeOrder[index], challengeOrder[index+1] = challengeOrder[index+1], challengeOrder[index]
                 refreshChallengeUI()
                 updateQueueDisplay()
+                autoSaveConfig()
             end
         end)
         
@@ -614,6 +520,7 @@ local function refreshChallengeUI()
             table.remove(challengeOrder, index)
             refreshChallengeUI()
             updateQueueDisplay()
+            autoSaveConfig()
         end)
     end
     updateQueueDisplay()
@@ -656,6 +563,7 @@ addBtn.MouseButton1Click:Connect(function()
         table.insert(challengeOrder, {name = name, id = name, interval = interval, enabled = true})
         refreshChallengeUI()
         challengeDropdown.Text = ""
+        autoSaveConfig()
     end
 end)
 
@@ -695,17 +603,20 @@ preset1.MouseButton1Click:Connect(function()
     table.insert(challengeOrder, {name = "Easter Challenge #2", id = "Easter Challenge #2", interval = 180, enabled = true})
     table.insert(challengeOrder, {name = "Godly Challenge", id = "Godly Challenge", interval = 300, enabled = true})
     refreshChallengeUI()
+    autoSaveConfig()
 end)
 
 preset2.MouseButton1Click:Connect(function()
     challengeOrder = {}
     table.insert(challengeOrder, {name = "Godly Challenge", id = "Godly Challenge", interval = 600, enabled = true})
     refreshChallengeUI()
+    autoSaveConfig()
 end)
 
 preset3.MouseButton1Click:Connect(function()
     challengeOrder = {}
     refreshChallengeUI()
+    autoSaveConfig()
 end)
 
 -- Auto Challenge Toggle
@@ -718,20 +629,47 @@ autoChallengeToggle.TextColor3 = Color3.new(1, 1, 1)
 autoChallengeToggle.Font = Enum.Font.GothamBold
 autoChallengeToggle.Parent = challengePanel
 
--- Toggle connections
-autoRaidAfterToggle.MouseButton1Click:Connect(function()
-    autoRaidAfterChallenge = not autoRaidAfterChallenge
-    autoRaidAfterToggle.Text = autoRaidAfterChallenge and "🏠 Auto Raid AFTER each challenge: ✅ ON" or "🏠 Auto Raid AFTER each challenge: ❌ OFF"
-    autoRaidAfterToggle.BackgroundColor3 = autoRaidAfterChallenge and Color3.fromRGB(50, 100, 50) or Color3.fromRGB(70, 50, 50)
-end)
+--// ============== MANUAL CHALLENGE CONTROLS ==============
+local manualControlsTitle = Instance.new("TextLabel")
+manualControlsTitle.Size = UDim2.new(1, -20, 0, 25)
+manualControlsTitle.Text = "🎮 MANUAL CHALLENGE CONTROLS"
+manualControlsTitle.TextColor3 = Color3.new(0.5, 0.8, 1)
+manualControlsTitle.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+manualControlsTitle.Parent = challengePanel
 
-autoRaidToggle.MouseButton1Click:Connect(function()
-    autoRaidActive = not autoRaidActive
-    autoRaidToggle.Text = autoRaidActive and "🏠 Auto Raid AFTER LAST: ✅ ON (Wait " .. math.floor(autoRaidWaitTime/60) .. " min)" or "🏠 Auto Raid AFTER LAST: ❌ OFF"
-    autoRaidToggle.BackgroundColor3 = autoRaidActive and Color3.fromRGB(50, 100, 50) or Color3.fromRGB(70, 50, 50)
-end)
+local manualFrame = Instance.new("Frame")
+manualFrame.Size = UDim2.new(1, -20, 0, 100)
+manualFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+manualFrame.Parent = challengePanel
 
--- UI Detection Functions
+local startFromFirstBtn = Instance.new("TextButton")
+startFromFirstBtn.Size = UDim2.new(0.48, -5, 0.45, 0)
+startFromFirstBtn.Position = UDim2.new(0, 5, 0.05, 0)
+startFromFirstBtn.Text = "🎯 START FROM ORDER 1\n(Restart queue)"
+startFromFirstBtn.BackgroundColor3 = Color3.fromRGB(50, 100, 50)
+startFromFirstBtn.TextColor3 = Color3.new(1, 1, 1)
+startFromFirstBtn.TextSize = 13
+startFromFirstBtn.Parent = manualFrame
+
+local executeNextBtn = Instance.new("TextButton")
+executeNextBtn.Size = UDim2.new(0.48, -5, 0.45, 0)
+executeNextBtn.Position = UDim2.new(0.52, 0, 0.05, 0)
+executeNextBtn.Text = "⚡ EXECUTE NEXT CHALLENGE\n(Skip cooldown)"
+executeNextBtn.BackgroundColor3 = Color3.fromRGB(100, 80, 50)
+executeNextBtn.TextColor3 = Color3.new(1, 1, 1)
+executeNextBtn.TextSize = 13
+executeNextBtn.Parent = manualFrame
+
+local manualWarning = Instance.new("TextLabel")
+manualWarning.Size = UDim2.new(1, -10, 0, 30)
+manualWarning.Position = UDim2.new(0, 5, 0.55, 0)
+manualWarning.Text = "⚠️ Manual controls will interrupt auto mode"
+manualWarning.TextColor3 = Color3.new(1, 0.5, 0)
+manualWarning.TextSize = 11
+manualWarning.BackgroundTransparency = 1
+manualWarning.Parent = manualFrame
+
+--// ============== UI DETECTION & CHALLENGE FUNCTIONS ==============
 local function findCooldownTimer()
     local pg = player:FindFirstChild("PlayerGui")
     if not pg then return nil end
@@ -751,24 +689,12 @@ local function findCooldownTimer()
     return nil
 end
 
-local function clickStartButton()
-    local pg = player:FindFirstChild("PlayerGui")
-    if not pg then return false end
-    for _, btn in ipairs(pg:GetDescendants()) do
-        if btn:IsA("TextButton") and btn.Text == "Start Challenge" and btn.Visible and btn.Active then
-            btn:Click()
-            return true
-        end
-    end
-    return false
-end
-
 local function startSpecificChallenge(challengeId)
     pcall(function()
         raidStop:FireServer()
-        task.wait(1)
+        task.wait(0.5)
         startChallenge:InvokeServer(challengeId)
-        task.wait(1)
+        task.wait(0.5)
         changeSetting:InvokeServer("AutoRaid", "On")
     end)
 end
@@ -785,13 +711,186 @@ local function startAutoRaid()
     end)
 end
 
+-- Confirmation GUI function
+local function showConfirmation(title, message, onConfirm)
+    local confirmGui = Instance.new("ScreenGui")
+    confirmGui.Name = "ConfirmationDialog"
+    confirmGui.Parent = game:GetService("CoreGui")
+    confirmGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    
+    local confirmFrame = Instance.new("Frame")
+    confirmFrame.Size = UDim2.new(0, 320, 0, 180)
+    confirmFrame.Position = UDim2.new(0.5, -160, 0.5, -90)
+    confirmFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+    confirmFrame.BorderSizePixel = 2
+    confirmFrame.BorderColor3 = Color3.fromRGB(255, 100, 100)
+    confirmFrame.Parent = confirmGui
+    
+    local confirmTitle = Instance.new("TextLabel")
+    confirmTitle.Size = UDim2.new(1, 0, 0, 45)
+    confirmTitle.Text = title
+    confirmTitle.TextColor3 = Color3.new(1, 0.5, 0)
+    confirmTitle.BackgroundColor3 = Color3.fromRGB(60, 30, 30)
+    confirmTitle.Font = Enum.Font.GothamBold
+    confirmTitle.TextSize = 16
+    confirmTitle.Parent = confirmFrame
+    
+    local confirmMsg = Instance.new("TextLabel")
+    confirmMsg.Size = UDim2.new(1, -20, 0, 60)
+    confirmMsg.Position = UDim2.new(0, 10, 0, 50)
+    confirmMsg.Text = message
+    confirmMsg.TextColor3 = Color3.new(1, 1, 1)
+    confirmMsg.TextWrapped = true
+    confirmMsg.TextSize = 13
+    confirmMsg.BackgroundTransparency = 1
+    confirmMsg.Parent = confirmFrame
+    
+    local confirmYes = Instance.new("TextButton")
+    confirmYes.Size = UDim2.new(0.4, -5, 0, 40)
+    confirmYes.Position = UDim2.new(0.05, 0, 0, 120)
+    confirmYes.Text = "✅ CONFIRM"
+    confirmYes.BackgroundColor3 = Color3.fromRGB(50, 100, 50)
+    confirmYes.TextColor3 = Color3.new(1, 1, 1)
+    confirmYes.Parent = confirmFrame
+    
+    local confirmNo = Instance.new("TextButton")
+    confirmNo.Size = UDim2.new(0.4, -5, 0, 40)
+    confirmNo.Position = UDim2.new(0.55, 0, 0, 120)
+    confirmNo.Text = "❌ CANCEL"
+    confirmNo.BackgroundColor3 = Color3.fromRGB(100, 50, 50)
+    confirmNo.TextColor3 = Color3.new(1, 1, 1)
+    confirmNo.Parent = confirmFrame
+    
+    confirmYes.MouseButton1Click:Connect(function()
+        confirmGui:Destroy()
+        onConfirm()
+    end)
+    
+    confirmNo.MouseButton1Click:Connect(function()
+        confirmGui:Destroy()
+    end)
+end
+
+-- Manual control functions
+local function startFromOrderOne()
+    local wasRunning = autoChallengeActive
+    if wasRunning then
+        autoChallengeActive = false
+        task.wait(0.5)
+    end
+    
+    isFirstRun = true
+    autoRaidTriggered = false
+    
+    challengeStatus.Text = "🔄 Manual: Starting from Order 1..."
+    countdownDisplay.Text = "Starting..."
+    
+    local enabledList = {}
+    for _, ch in ipairs(challengeOrder) do
+        if ch.enabled then
+            table.insert(enabledList, ch)
+        end
+    end
+    
+    if #enabledList > 0 then
+        pcall(function() raidStop:FireServer() end)
+        task.wait(0.5)
+        challengeStatus.Text = "🚀 Manual: Starting " .. enabledList[1].name
+        startSpecificChallenge(enabledList[1].id)
+        
+        if wasRunning then
+            task.wait(1)
+            autoChallengeActive = true
+            runAutoChallenge()
+        end
+    else
+        challengeStatus.Text = "❌ No challenges enabled!"
+        if wasRunning then
+            autoChallengeActive = true
+        end
+    end
+end
+
+local function executeNextChallenge()
+    local wasRunning = autoChallengeActive
+    if wasRunning then
+        autoChallengeActive = false
+        task.wait(0.5)
+    end
+    
+    local enabledList = {}
+    for _, ch in ipairs(challengeOrder) do
+        if ch.enabled then
+            table.insert(enabledList, ch)
+        end
+    end
+    
+    if #enabledList == 0 then
+        challengeStatus.Text = "❌ No challenges enabled!"
+        if wasRunning then
+            autoChallengeActive = true
+        end
+        return
+    end
+    
+    local nextChallenge = nil
+    local currentText = orderDisplay.Text
+    local currentName = nil
+    local match = string.match(currentText, "Current: (.-) %|")
+    if match and match ~= "None" then
+        currentName = match
+    end
+    
+    local foundCurrent = false
+    for i, ch in ipairs(enabledList) do
+        if foundCurrent then
+            nextChallenge = ch
+            break
+        end
+        if ch.name == currentName then
+            foundCurrent = true
+        end
+    end
+    
+    if not nextChallenge then
+        nextChallenge = enabledList[1]
+    end
+    
+    challengeStatus.Text = "⚡ Manual: Starting " .. nextChallenge.name .. " (skip cooldown)"
+    pcall(function() raidStop:FireServer() end)
+    task.wait(0.5)
+    startSpecificChallenge(nextChallenge.id)
+    
+    if wasRunning then
+        task.wait(1)
+        autoChallengeActive = true
+        runAutoChallenge()
+    end
+end
+
+startFromFirstBtn.MouseButton1Click:Connect(function()
+    showConfirmation(
+        "⚠️ RESTART FROM ORDER 1 ⚠️",
+        "This will stop current challenge and restart from the first enabled challenge in your queue.\n\nAuto mode will resume after.\n\nProceed?",
+        startFromOrderOne
+    )
+end)
+
+executeNextBtn.MouseButton1Click:Connect(function()
+    showConfirmation(
+        "⚡ EXECUTE NEXT CHALLENGE ⚡",
+        "This will skip cooldown and immediately start the next challenge in queue.\n\nAuto mode will resume after.\n\nProceed?",
+        executeNextChallenge
+    )
+end)
+
 -- Main Auto Challenge Loop
 local function runAutoChallenge()
     task.spawn(function()
-        local isFirstRun = true
+        local isFirstRunLocal = true
+        local autoRaidTriggeredLocal = false
         
         while autoChallengeActive do
-            -- Get enabled challenges in order
             local enabledList = {}
             for _, ch in ipairs(challengeOrder) do
                 if ch.enabled then
@@ -807,7 +906,6 @@ local function runAutoChallenge()
                 for currentIndex, challenge in ipairs(enabledList) do
                     if not autoChallengeActive then break end
                     
-                    -- Update display
                     local nextName = "None"
                     if currentIndex < #enabledList then
                         nextName = enabledList[currentIndex + 1].name
@@ -816,8 +914,7 @@ local function runAutoChallenge()
                     end
                     orderDisplay.Text = string.format("📍 Current: %s | ➡️ Next: %s", challenge.name, nextName)
                     
-                    -- ONLY wait for cooldown on the FIRST challenge
-                    if isFirstRun then
+                    if isFirstRunLocal then
                         challengeStatus.Text = "⏳ Waiting for cooldown (first challenge only) - " .. challenge.name
                         local cooldownEnded = false
                         while autoChallengeActive and not cooldownEnded do
@@ -833,16 +930,21 @@ local function runAutoChallenge()
                             end
                             task.wait(1)
                         end
-                        isFirstRun = false
+                        isFirstRunLocal = false
+                        
+                        challengeStatus.Text = "🚀 Starting in 5 seconds..."
+                        for i = 5, 1, -1 do
+                            if not autoChallengeActive then break end
+                            countdownDisplay.Text = string.format("🎯 Starting in: %d", i)
+                            task.wait(1)
+                        end
                     end
                     
                     if autoChallengeActive then
-                        -- Start the challenge
                         challengeStatus.Text = "🚀 Starting " .. challenge.name
                         countdownDisplay.Text = "🏃 Running: " .. challenge.name
                         startSpecificChallenge(challenge.id)
                         
-                        -- Wait for the interval (time between challenges)
                         local waitTime = challenge.interval
                         for i = waitTime, 1, -1 do
                             if not autoChallengeActive then break end
@@ -855,38 +957,43 @@ local function runAutoChallenge()
                             task.wait(1)
                         end
                         
-                        -- OPTION 1: Auto Raid AFTER EACH challenge (if enabled)
+                        if currentIndex < #enabledList then
+                            challengeStatus.Text = "⏳ Next challenge in 5 seconds..."
+                            for i = 5, 1, -1 do
+                                if not autoChallengeActive then break end
+                                countdownDisplay.Text = string.format("🎯 Next in: %d", i)
+                                task.wait(1)
+                            end
+                        end
+                        
                         if autoRaidAfterChallenge then
                             challengeStatus.Text = "🛑 Turning off Auto Raid..."
                             turnOffAutoRaid()
+                            task.wait(1)
                         end
                     end
                 end
                 
-                -- OPTION 2: Auto Raid AFTER ALL challenges complete (if enabled)
-                if autoRaidActive then
+                if autoRaidActive and not autoRaidTriggeredLocal then
+                    autoRaidTriggeredLocal = true
                     challengeStatus.Text = "🤖 All challenges complete! Starting Auto Raid in " .. math.floor(autoRaidWaitTime/60) .. " minutes..."
                     for i = autoRaidWaitTime, 1, -1 do
                         if not autoChallengeActive then break end
                         local mins = math.floor(i / 60)
                         local secs = i % 60
                         countdownDisplay.Text = string.format("🚀 Auto Raid in: %02d:%02d", mins, secs)
-                        if i % 30 == 0 or i <= 10 then
-                            challengeStatus.Text = string.format("🤖 Auto Raid starting in %d:%02d", mins, secs)
-                        end
                         task.wait(1)
                     end
                     if autoChallengeActive then
                         challengeStatus.Text = "🚀 Starting Auto Raid!"
                         startAutoRaid()
                         countdownDisplay.Text = "🏠 Auto Raid Active!"
-                        -- Let raid run for a bit before next cycle
-                        task.wait(60)
+                        task.wait(30)
                     end
                 end
                 
-                -- After completing all challenges, reset isFirstRun for next cycle
-                isFirstRun = true
+                isFirstRunLocal = true
+                autoRaidTriggeredLocal = false
             end
         end
     end)
@@ -903,6 +1010,7 @@ autoChallengeToggle.MouseButton1Click:Connect(function()
         countdownDisplay.Text = "Next: --:--"
         orderDisplay.Text = "Current: None | Next: None"
     end
+    autoSaveConfig()
 end)
 
 refreshChallengeUI()
@@ -1024,43 +1132,299 @@ end)
 
 runScheduler()
 
---// ============== CONFIG TAB ==============
+--// ============== CONFIGURATION SYSTEM (AUTO-SAVE/LOAD) ==============
+local configName = "TD_Auto_Farm_Config"
+local savedConfig = nil
+
+local function autoSaveConfig()
+    local config = {
+        version = 4,
+        savedAt = os.date("%Y-%m-%d %H:%M:%S"),
+        challengeOrder = {},
+        selectedItems = {},
+        autoBuyEnabled = autoBuyActive,
+        autoRaidAfterChallenge = autoRaidAfterChallenge,
+        autoRaidEnabled = autoRaidActive,
+        autoRaidWaitTime = autoRaidWaitTime,
+        autoChallengeEnabled = autoChallengeActive
+    }
+    
+    for _, ch in ipairs(challengeOrder) do
+        table.insert(config.challengeOrder, {
+            name = ch.name,
+            id = ch.id,
+            interval = ch.interval,
+            enabled = ch.enabled
+        })
+    end
+    
+    for item, _ in pairs(selectedItems) do
+        table.insert(config.selectedItems, item)
+    end
+    
+    local success, encoded = pcall(function()
+        return HttpService:JSONEncode(config)
+    end)
+    
+    if success then
+        local writeSuccess = pcall(function()
+            writefile(configName .. ".json", encoded)
+        end)
+        if not writeSuccess then
+            pcall(function()
+                shared[configName] = encoded
+            end)
+        end
+        pcall(function()
+            setclipboard("[TD CONFIG BACKUP] " .. encoded)
+        end)
+    end
+end
+
+local function autoLoadConfig()
+    local loaded = false
+    local configData = nil
+    
+    local readSuccess, data = pcall(function()
+        return readfile(configName .. ".json")
+    end)
+    
+    if readSuccess and data and data ~= "" then
+        configData = data
+        loaded = true
+    end
+    
+    if not loaded then
+        pcall(function()
+            if shared[configName] and shared[configName] ~= "" then
+                configData = shared[configName]
+                loaded = true
+            end
+        end)
+    end
+    
+    if loaded and configData then
+        local success, data = pcall(function()
+            return HttpService:JSONDecode(configData)
+        end)
+        if success and data then
+            savedConfig = data
+            return true
+        end
+    end
+    return false
+end
+
+local function applyConfig()
+    if not savedConfig then return false end
+    
+    if savedConfig.challengeOrder and #savedConfig.challengeOrder > 0 then
+        challengeOrder = {}
+        for _, ch in ipairs(savedConfig.challengeOrder) do
+            table.insert(challengeOrder, {
+                name = ch.name,
+                id = ch.id,
+                interval = ch.interval,
+                enabled = ch.enabled
+            })
+        end
+        refreshChallengeUI()
+        updateQueueDisplay()
+    end
+    
+    if savedConfig.selectedItems then
+        for _, itemName in ipairs(savedConfig.selectedItems) do
+            selectedItems[itemName] = true
+            local btn = itemButtons[itemName]
+            if btn then
+                btn.Text = btn.Text:gsub("%[ %]","[X]")
+            end
+        end
+    end
+    
+    if savedConfig.autoRaidAfterChallenge ~= nil then
+        autoRaidAfterChallenge = savedConfig.autoRaidAfterChallenge
+        autoRaidAfterToggle.Text = autoRaidAfterChallenge and "🏠 Auto Raid AFTER each challenge: ✅ ON" or "🏠 Auto Raid AFTER each challenge: ❌ OFF"
+        autoRaidAfterToggle.BackgroundColor3 = autoRaidAfterChallenge and Color3.fromRGB(50, 100, 50) or Color3.fromRGB(70, 50, 50)
+    end
+    
+    if savedConfig.autoRaidEnabled ~= nil then
+        autoRaidActive = savedConfig.autoRaidEnabled
+        autoRaidWaitTime = savedConfig.autoRaidWaitTime or 300
+        autoRaidToggle.Text = autoRaidActive and "🏠 Auto Raid AFTER LAST: ✅ ON (Wait " .. math.floor(autoRaidWaitTime/60) .. " min)" or "🏠 Auto Raid AFTER LAST: ❌ OFF"
+        autoRaidToggle.BackgroundColor3 = autoRaidActive and Color3.fromRGB(50, 100, 50) or Color3.fromRGB(70, 50, 50)
+        raidWaitBox.Text = tostring(autoRaidWaitTime)
+    end
+    
+    if savedConfig.autoBuyEnabled then
+        autoBuyActive = savedConfig.autoBuyEnabled
+        autoBuyToggle.Text = autoBuyActive and "🔴 AUTO BUY (1s): ON" or "🟢 AUTO BUY (1s): OFF"
+        autoBuyToggle.BackgroundColor3 = autoBuyActive and Color3.fromRGB(50, 100, 50) or Color3.fromRGB(70, 50, 50)
+        if autoBuyActive then
+            autoBuyLoop()
+        end
+    end
+    
+    if savedConfig.autoChallengeEnabled then
+        autoChallengeActive = savedConfig.autoChallengeEnabled
+        autoChallengeToggle.Text = autoChallengeActive and "🎯 AUTO CHALLENGE: ON" or "🎯 AUTO CHALLENGE: OFF"
+        autoChallengeToggle.BackgroundColor3 = autoChallengeActive and Color3.fromRGB(50, 100, 50) or Color3.fromRGB(70, 50, 50)
+        if autoChallengeActive then
+            runAutoChallenge()
+        end
+    end
+    
+    return true
+end
+
+-- Reset to default with confirmation
+local function resetToDefault()
+    local confirmGui = Instance.new("ScreenGui")
+    confirmGui.Parent = game:GetService("CoreGui")
+    
+    local confirmFrame = Instance.new("Frame")
+    confirmFrame.Size = UDim2.new(0, 300, 0, 150)
+    confirmFrame.Position = UDim2.new(0.5, -150, 0.5, -75)
+    confirmFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+    confirmFrame.BorderSizePixel = 2
+    confirmFrame.BorderColor3 = Color3.fromRGB(255, 100, 100)
+    confirmFrame.Parent = confirmGui
+    
+    local confirmTitle = Instance.new("TextLabel")
+    confirmTitle.Size = UDim2.new(1, 0, 0, 40)
+    confirmTitle.Text = "⚠️ RESET CONFIGURATION ⚠️"
+    confirmTitle.TextColor3 = Color3.new(1, 0.5, 0)
+    confirmTitle.BackgroundColor3 = Color3.fromRGB(60, 30, 30)
+    confirmTitle.Font = Enum.Font.GothamBold
+    confirmTitle.Parent = confirmFrame
+    
+    local confirmMsg = Instance.new("TextLabel")
+    confirmMsg.Size = UDim2.new(1, -20, 0, 50)
+    confirmMsg.Position = UDim2.new(0, 10, 0, 45)
+    confirmMsg.Text = "This will reset ALL settings to default.\nThis cannot be undone!"
+    confirmMsg.TextColor3 = Color3.new(1, 1, 1)
+    confirmMsg.TextWrapped = true
+    confirmMsg.BackgroundTransparency = 1
+    confirmMsg.Parent = confirmFrame
+    
+    local confirmYes = Instance.new("TextButton")
+    confirmYes.Size = UDim2.new(0.4, -5, 0, 40)
+    confirmYes.Position = UDim2.new(0.05, 0, 0, 100)
+    confirmYes.Text = "✅ YES, RESET"
+    confirmYes.BackgroundColor3 = Color3.fromRGB(100, 50, 50)
+    confirmYes.TextColor3 = Color3.new(1, 1, 1)
+    confirmYes.Parent = confirmFrame
+    
+    local confirmNo = Instance.new("TextButton")
+    confirmNo.Size = UDim2.new(0.4, -5, 0, 40)
+    confirmNo.Position = UDim2.new(0.55, 0, 0, 100)
+    confirmNo.Text = "❌ CANCEL"
+    confirmNo.BackgroundColor3 = Color3.fromRGB(50, 100, 50)
+    confirmNo.TextColor3 = Color3.new(1, 1, 1)
+    confirmNo.Parent = confirmFrame
+    
+    confirmYes.MouseButton1Click:Connect(function()
+        challengeOrder = {}
+        for i, ch in ipairs(allChallenges) do
+            challengeOrder[i] = {name = ch.name, id = ch.id, interval = 300, enabled = false}
+        end
+        refreshChallengeUI()
+        updateQueueDisplay()
+        
+        for name, btn in pairs(itemButtons) do
+            btn.Text = btn.Text:gsub("%[X%]","[ ]")
+        end
+        selectedItems = {}
+        
+        autoBuyActive = false
+        autoBuyToggle.Text = "🟢 AUTO BUY (1s): OFF"
+        autoBuyToggle.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
+        
+        autoRaidAfterChallenge = true
+        autoRaidAfterToggle.Text = "🏠 Auto Raid AFTER each challenge: ✅ ON"
+        autoRaidAfterToggle.BackgroundColor3 = Color3.fromRGB(50, 100, 50)
+        
+        autoRaidActive = false
+        autoRaidWaitTime = 300
+        autoRaidToggle.Text = "🏠 Auto Raid AFTER LAST: ❌ OFF"
+        autoRaidToggle.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
+        raidWaitBox.Text = "300"
+        
+        autoChallengeActive = false
+        autoChallengeToggle.Text = "🎯 AUTO CHALLENGE: OFF"
+        autoChallengeToggle.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
+        
+        autoSaveConfig()
+        saveStatus.Text = "✅ Reset to default! Config saved."
+        task.wait(2)
+        saveStatus.Text = "Ready"
+        confirmGui:Destroy()
+    end)
+    
+    confirmNo.MouseButton1Click:Connect(function()
+        confirmGui:Destroy()
+    end)
+end
+
+-- Config Tab UI
 local configPanel = panels.config
 
 local configTitle = Instance.new("TextLabel")
 configTitle.Size = UDim2.new(1, -20, 0, 40)
-configTitle.Text = "💾 SAVE / LOAD CONFIGURATION"
+configTitle.Text = "💾 CONFIGURATION (Auto-Saves)"
 configTitle.TextColor3 = Color3.new(1, 1, 0)
 configTitle.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
 configTitle.Font = Enum.Font.GothamBold
 configTitle.Parent = configPanel
 
+local configStatusIndicator = Instance.new("TextLabel")
+configStatusIndicator.Size = UDim2.new(1, -20, 0, 35)
+configStatusIndicator.Text = "📌 Config Status: ✅ Auto-Save Active"
+configStatusIndicator.TextColor3 = Color3.new(0, 1, 0)
+configStatusIndicator.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+configStatusIndicator.Parent = configPanel
+
 local saveBtn = Instance.new("TextButton")
-saveBtn.Size = UDim2.new(1, -20, 0, 60)
-saveBtn.Text = "💾 SAVE CURRENT CONFIGURATION\n(Saves challenges, selected items, and settings)"
+saveBtn.Size = UDim2.new(1, -20, 0, 50)
+saveBtn.Text = "💾 MANUAL SAVE (Auto-saves on changes)"
 saveBtn.BackgroundColor3 = Color3.fromRGB(50, 100, 50)
 saveBtn.TextColor3 = Color3.new(1, 1, 1)
 saveBtn.TextSize = 14
 saveBtn.Parent = configPanel
 
-local loadBtn = Instance.new("TextButton")
-loadBtn.Size = UDim2.new(1, -20, 0, 60)
-loadBtn.Text = "📂 LOAD SAVED CONFIGURATION\n(Restores last saved settings)"
-loadBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 100)
-loadBtn.TextColor3 = Color3.new(1, 1, 1)
-loadBtn.TextSize = 14
-loadBtn.Parent = configPanel
+local resetBtn = Instance.new("TextButton")
+resetBtn.Size = UDim2.new(1, -20, 0, 50)
+resetBtn.Text = "⚠️ RESET TO DEFAULT (with confirmation)"
+resetBtn.BackgroundColor3 = Color3.fromRGB(100, 50, 50)
+resetBtn.TextColor3 = Color3.new(1, 1, 1)
+resetBtn.TextSize = 14
+resetBtn.Parent = configPanel
+
+local exportBtn = Instance.new("TextButton")
+exportBtn.Size = UDim2.new(0.48, -5, 0, 45)
+exportBtn.Text = "📤 EXPORT CONFIG"
+exportBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
+exportBtn.TextColor3 = Color3.new(1, 1, 1)
+exportBtn.Parent = configPanel
+
+local importBtn = Instance.new("TextButton")
+importBtn.Size = UDim2.new(0.48, -5, 0, 45)
+importBtn.Position = UDim2.new(0.52, 0, 0, 0)
+importBtn.Text = "📋 IMPORT FROM CLIPBOARD"
+importBtn.BackgroundColor3 = Color3.fromRGB(100, 80, 50)
+importBtn.TextColor3 = Color3.new(1, 1, 1)
+importBtn.Parent = configPanel
 
 local saveStatus = Instance.new("TextLabel")
-saveStatus.Size = UDim2.new(1, -20, 0, 40)
+saveStatus.Size = UDim2.new(1, -20, 0, 35)
 saveStatus.Text = "Ready"
 saveStatus.TextColor3 = Color3.new(0.7, 0.7, 0.7)
 saveStatus.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 saveStatus.Parent = configPanel
 
 local configInfo = Instance.new("TextLabel")
-configInfo.Size = UDim2.new(1, -20, 0, 100)
-configInfo.Text = "📌 Info:\n- Config saves to: " .. configName .. ".json\n- Auto-loads when script starts\n- Saves: Challenge order, intervals, enabled state, selected items, auto-buy state, auto-raid settings"
+configInfo.Size = UDim2.new(1, -20, 0, 130)
+configInfo.Text = "📌 Auto-Save Info:\n\n✅ Changes save automatically!\n✅ Config loads when script starts\n✅ No need to click Load\n✅ Export to save backup\n✅ Import to restore from backup\n✅ Reset with confirmation to start fresh"
 configInfo.TextColor3 = Color3.new(0.6, 0.6, 0.6)
 configInfo.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
 configInfo.TextWrapped = true
@@ -1068,20 +1432,80 @@ configInfo.TextSize = 12
 configInfo.Parent = configPanel
 
 saveBtn.MouseButton1Click:Connect(function()
-    saveConfig()
+    autoSaveConfig()
+    saveStatus.Text = "✅ Config saved manually!"
+    task.wait(2)
+    saveStatus.Text = "Ready"
 end)
 
-loadBtn.MouseButton1Click:Connect(function()
-    if loadConfig() then
-        applyConfig()
-        saveStatus.Text = "✅ Config loaded at " .. os.date("%H:%M:%S")
-        task.wait(2)
-        saveStatus.Text = "Ready"
-    else
-        saveStatus.Text = "❌ No saved config found"
-        task.wait(2)
-        saveStatus.Text = "Ready"
+resetBtn.MouseButton1Click:Connect(function()
+    resetToDefault()
+end)
+
+exportBtn.MouseButton1Click:Connect(function()
+    local config = {
+        version = 4,
+        savedAt = os.date("%Y-%m-%d %H:%M:%S"),
+        challengeOrder = {},
+        selectedItems = {},
+        autoBuyEnabled = autoBuyActive,
+        autoRaidAfterChallenge = autoRaidAfterChallenge,
+        autoRaidEnabled = autoRaidActive,
+        autoRaidWaitTime = autoRaidWaitTime,
+        autoChallengeEnabled = autoChallengeActive
+    }
+    
+    for _, ch in ipairs(challengeOrder) do
+        table.insert(config.challengeOrder, {
+            name = ch.name,
+            id = ch.id,
+            interval = ch.interval,
+            enabled = ch.enabled
+        })
     end
+    
+    for item, _ in pairs(selectedItems) do
+        table.insert(config.selectedItems, item)
+    end
+    
+    local success, json = pcall(function()
+        return HttpService:JSONEncode(config)
+    end)
+    
+    if success then
+        pcall(function()
+            setclipboard("[TD CONFIG BACKUP] " .. json)
+            saveStatus.Text = "✅ Config exported to clipboard!"
+        end)
+    else
+        saveStatus.Text = "❌ Export failed"
+    end
+    task.wait(2)
+    saveStatus.Text = "Ready"
+end)
+
+importBtn.MouseButton1Click:Connect(function()
+    pcall(function()
+        local clip = getclipboard()
+        if clip and clip ~= "" then
+            local cleanClip = clip:gsub("%[TD CONFIG BACKUP%] ", "")
+            local success, data = pcall(function()
+                return HttpService:JSONDecode(cleanClip)
+            end)
+            if success and data then
+                savedConfig = data
+                applyConfig()
+                autoSaveConfig()
+                saveStatus.Text = "✅ Config imported and applied!"
+            else
+                saveStatus.Text = "❌ Invalid config in clipboard"
+            end
+        else
+            saveStatus.Text = "❌ Clipboard is empty"
+        end
+        task.wait(2)
+        saveStatus.Text = "Ready"
+    end)
 end)
 
 --// TAB SWITCHING
@@ -1101,14 +1525,18 @@ end
 panels.build.Visible = true
 tabs.build.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
 
--- Load saved config on startup
-loadConfig()
-applyConfig()
+-- Load config on startup
+if autoLoadConfig() then
+    applyConfig()
+end
 
-print("=== TD Auto Farm Loaded ===")
-print("Auto Raid Options:")
-print("  ✅ AFTER EACH challenge - Turns OFF Auto Raid")
-print("  ✅ AFTER LAST challenge - Waits interval, then turns ON Auto Raid")
-print("  ✅ Both can be toggled independently!")
+print("=== TD Auto Farm Loaded Successfully! ===")
+print("Features:")
+print("  🏗️ Build - Easter & Mega Raid")
+print("  🛒 Auto Buy - Select items, buys every 1 second")
+print("  🎯 Auto Challenge - Configurable order and intervals")
+print("  🎮 Manual Controls - Start from order 1 or execute next")
+print("  ⏰ Schedule - Easter at :15 & :45, Mega at :00")
+print("  💾 Auto-Save Config - Saves all settings automatically")
 
 end)
