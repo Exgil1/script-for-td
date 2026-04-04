@@ -1,0 +1,301 @@
+--// ITEM DUPLICATION TESTER
+-- Tests various duplication methods
+
+local player = game:GetService("Players").LocalPlayer
+local functions = game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions")
+
+-- Get your towers
+local function getMyTowers()
+    local towers = {}
+    local inventory = player:FindFirstChild("Inventory")
+    if inventory then
+        local defenses = inventory:FindFirstChild("Defenses")
+        if defenses then
+            for _, tower in pairs(defenses:GetChildren()) do
+                table.insert(towers, tower.Name)
+            end
+        end
+    end
+    return towers
+end
+
+-- Get a tower from workspace
+local function getPlacedTower()
+    local workspace = game:GetService("Workspace")
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("Model") and (obj.Name:match("Cannon") or obj.Name:match("Tower")) then
+            return obj.Name, obj
+        end
+    end
+    return nil, nil
+end
+
+print("==========================================")
+print("     ITEM DUPLICATION TESTER")
+print("==========================================")
+
+-- METHOD 1: Pickup + Build Race Condition
+print("\n[TEST 1] Pickup + Build Race Condition")
+
+local towerName, tower = getPlacedTower()
+if towerName and tower then
+    print("Found tower:", towerName)
+    
+    local pickupRemote = functions:FindFirstChild("PickUpDefense")
+    local buildRemote = functions:FindFirstChild("BuildDefense")
+    
+    if pickupRemote and buildRemote then
+        local success = false
+        
+        -- Try to pick up and build simultaneously
+        task.spawn(function()
+            pcall(function()
+                pickupRemote:InvokeServer(towerName)
+                print("  Pickup attempted")
+            end)
+        end)
+        
+        task.wait(0.05)
+        
+        task.spawn(function()
+            pcall(function()
+                buildRemote:InvokeServer(towerName, "Blueprint", {
+                    Rotation = 90,
+                    Position = Vector3.new(9999, 9999, 9999)
+                })
+                print("  Build attempted")
+            end)
+        end)
+        
+        task.wait(2)
+        print("  Check if you have 2 copies of", towerName)
+    end
+else
+    print("  No tower found in workspace")
+end
+
+-- METHOD 2: Sell + Pickup Race Condition
+print("\n[TEST 2] Sell + Pickup Race Condition")
+
+local myTowers = getMyTowers()
+if #myTowers > 0 then
+    local testTower = myTowers[1]
+    print("Testing with:", testTower)
+    
+    local sellRemote = functions:FindFirstChild("SellDefense")
+    local pickupRemote = functions:FindFirstChild("PickUpDefense")
+    
+    if sellRemote and pickupRemote then
+        -- First, place a tower
+        local buildRemote = functions:FindFirstChild("BuildDefense")
+        if buildRemote then
+            local pos = Vector3.new(10000, 10000, 10000)
+            buildRemote:InvokeServer(testTower, "Blueprint", {Rotation=90, Position=pos})
+            print("  Placed tower at remote location")
+            task.wait(2)
+        end
+        
+        -- Try to sell and pickup simultaneously
+        task.spawn(function()
+            pcall(function()
+                sellRemote:InvokeServer(testTower)
+                print("  Sell attempted")
+            end)
+        end)
+        
+        task.wait(0.05)
+        
+        task.spawn(function()
+            pcall(function()
+                pickupRemote:InvokeServer(testTower)
+                print("  Pickup attempted")
+            end)
+        end)
+        
+        task.wait(2)
+        print("  Check inventory for duplicate")
+    end
+end
+
+-- METHOD 3: Build Multiple Simultaneously
+print("\n[TEST 3] Multiple Builds Same Position")
+
+local buildRemote = functions:FindFirstChild("BuildDefense")
+if buildRemote then
+    local testTower = "Cannon"
+    local position = Vector3.new(10000, 10000, 10000)
+    
+    print("Building 10 towers at same position...")
+    
+    for i = 1, 10 do
+        task.spawn(function()
+            pcall(function()
+                buildRemote:InvokeServer(testTower, "Blueprint", {
+                    Rotation = 90,
+                    Position = position
+                })
+            end)
+        end)
+    end
+    
+    task.wait(3)
+    print("  Check if you have multiple towers at same spot")
+end
+
+-- METHOD 4: StoreAll + Pickup Race
+print("\n[TEST 4] StoreAll + Pickup Race")
+
+local storeAll = functions:FindFirstChild("StoreAll")
+local pickupRemote = functions:FindFirstChild("PickUpDefense")
+
+if storeAll and pickupRemote then
+    -- Place a tower first
+    local buildRemote = functions:FindFirstChild("BuildDefense")
+    if buildRemote then
+        local pos = Vector3.new(10001, 10001, 10001)
+        buildRemote:InvokeServer("Cannon", "Blueprint", {Rotation=90, Position=pos})
+        print("  Placed test tower")
+        task.wait(2)
+    end
+    
+    task.spawn(function()
+        pcall(function()
+            storeAll:InvokeServer()
+            print("  StoreAll attempted")
+        end)
+    end)
+    
+    task.wait(0.05)
+    
+    task.spawn(function()
+        pcall(function()
+            pickupRemote:InvokeServer("Cannon{some-uuid}")
+            print("  Pickup attempted")
+        end)
+    end)
+    
+    task.wait(2)
+end
+
+-- METHOD 5: Crate Opening Race Condition
+print("\n[TEST 5] Crate Opening Race")
+
+local openCrate = functions:FindFirstChild("OpenCrate")
+if openCrate then
+    print("Opening 10 crates simultaneously...")
+    
+    for i = 1, 10 do
+        task.spawn(function()
+            pcall(function()
+                openCrate:InvokeServer("MegaCrate")
+                print("  Crate #" .. i .. " opened")
+            end)
+        end)
+    end
+    
+    task.wait(3)
+    print("  Check if you got 10x rewards")
+end
+
+-- METHOD 6: BuyCrate + OpenCrate Race
+print("\n[TEST 6] Buy + Open Race")
+
+local buyCrate = functions:FindFirstChild("BuyCrate")
+local openCrate2 = functions:FindFirstChild("OpenCrate")
+
+if buyCrate and openCrate2 then
+    task.spawn(function()
+        pcall(function()
+            buyCrate:InvokeServer("MegaCrate")
+            print("  Buy attempted")
+        end)
+    end)
+    
+    task.wait(0.05)
+    
+    task.spawn(function()
+        pcall(function()
+            openCrate2:InvokeServer("MegaCrate")
+            print("  Open attempted")
+        end)
+    end)
+    
+    task.wait(2)
+end
+
+-- METHOD 7: Level Up Rollback
+print("\n[TEST 7] Level Up Rollback")
+
+local levelUp = functions:FindFirstChild("LevelUpDefense")
+if levelUp and #myTowers > 0 then
+    local testTower = myTowers[1]
+    print("Testing level up on:", testTower)
+    
+    -- Get current level
+    local inventory = player:FindFirstChild("Inventory")
+    if inventory then
+        local defenses = inventory:FindFirstChild("Defenses")
+        if defenses then
+            local tower = defenses:FindFirstChild(testTower)
+            if tower then
+                local beforeLevel = tower:FindFirstChild("Level")
+                print("  Before level:", beforeLevel and beforeLevel.Value or 0)
+                
+                -- Level up multiple times rapidly
+                for i = 1, 5 do
+                    task.spawn(function()
+                        pcall(function()
+                            levelUp:InvokeServer(testTower, 1)
+                            print("  Level up #" .. i .. " attempted")
+                        end)
+                    end)
+                end
+                
+                task.wait(2)
+                
+                local afterLevel = tower:FindFirstChild("Level")
+                print("  After level:", afterLevel and afterLevel.Value or 0)
+                
+                if afterLevel and beforeLevel and afterLevel.Value > beforeLevel.Value + 1 then
+                    print("  ✅ POSSIBLE DUPLICATION! Gained multiple levels!")
+                end
+            end
+        end
+    end
+end
+
+-- METHOD 8: Network Lag Exploit
+print("\n[TEST 8] Network Lag Exploit")
+
+local function lagExploit()
+    -- Create network lag
+    for i = 1, 1000 do
+        game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("Remotes"):FindFirstChild("Ping"):FireServer()
+    end
+    
+    task.wait(0.1)
+    
+    -- During lag, try to duplicate
+    local buildRemote = functions:FindFirstChild("BuildDefense")
+    if buildRemote then
+        for i = 1, 5 do
+            pcall(function()
+                buildRemote:InvokeServer("Cannon", "Blueprint", {
+                    Rotation = 90,
+                    Position = Vector3.new(10002 + i, 10002, 10002)
+                })
+            end)
+        end
+    end
+end
+
+lagExploit()
+
+print("\n==========================================")
+print("     TEST COMPLETE")
+print("==========================================")
+print("Check your inventory for:")
+print("  - Duplicate towers")
+print("  - Extra currency")
+print("  - Multiple levels gained")
+print("==========================================")
