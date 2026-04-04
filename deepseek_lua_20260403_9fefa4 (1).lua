@@ -1,4 +1,4 @@
---// COMPLETE TD AUTO FARM - FULL GUI WITH ANTI-AFK
+--// COMPLETE TD AUTO FARM - FULLY FIXED WITH WORKING BUILDS
 pcall(function()
 
 --// SERVICES
@@ -8,6 +8,13 @@ local player = Players.LocalPlayer
 local HttpService = game:GetService("HttpService")
 local VirtualUser = game:GetService("VirtualUser")
 
+--// VECTOR HELPER (Fixes vector.create issue)
+local vector = vector or {
+    create = function(x, y, z)
+        return Vector3.new(x, y, z)
+    end
+}
+
 --// REMOTES
 local events = ReplicatedStorage:WaitForChild("Events")
 local functionsFolder = events:WaitForChild("Functions")
@@ -15,15 +22,18 @@ local remotesFolder = events:WaitForChild("Remotes")
 
 local buyDefense = functionsFolder:WaitForChild("BuyDefense")
 local eBuyDefense = functionsFolder:WaitForChild("EBuyDefense")
-local eBuildDefense = functionsFolder:WaitForChild("EBuildDefense")
-local cBuildDefense = functionsFolder:WaitForChild("CBuildDefense")
 local startChallenge = functionsFolder:WaitForChild("StartChallenge")
 local changeSetting = functionsFolder:WaitForChild("ChangeSetting")
 local joinEventRaid = remotesFolder:WaitForChild("JoinEventRaid")
 local joinCommunityRaid = remotesFolder:WaitForChild("JoinCommunityRaid")
 local raidStop = remotesFolder:WaitForChild("RaidStop")
 
---// PLAYER DATA
+-- Get build remotes
+local eBuildDefense = functionsFolder:FindFirstChild("EBuildDefense")
+local cBuildDefense = functionsFolder:FindFirstChild("CBuildDefense")
+local buildDefense = functionsFolder:FindFirstChild("BuildDefense")
+
+--// PLAYER DATA FOR CHALLENGE COOLDOWN
 local challengesFolder = player:FindFirstChild("Challenges")
 local playerFlags = player:FindFirstChild("Flags")
 local raidingFlag = playerFlags and playerFlags:FindFirstChild("Raiding")
@@ -37,23 +47,55 @@ local currentChallengeName = nil
 local antiAFKActive = false
 local antiAFKThread = nil
 
---// BUILD STRUCTURES
+--// BUILD STRUCTURES - EASTER (Fixed positions)
 local easterBuildStructures = {
-    {id = "Wall{d0bfa0d3-11c2-4606-b175-ecd58b9878f0}", pos = Vector3.new(529.6004638671875, 227.50601196289062, 1187.6143798828125), rot = 90},
-    {id = "Inferno Beam{538ce489-08e2-4a0e-9a7b-24792793dbb6}", pos = Vector3.new(533.6004638671875, 227.50601196289062, 1197.6143798828125), rot = 90},
-    {id = "Flamespitter{5c2cf563-40ae-4c75-9881-9e97f9b8cd66}", pos = Vector3.new(525.6004638671875, 227.50601196289062, 1197.6143798828125), rot = 90},
-    {id = "Rocket Artillery{84d378a0-3aeb-4e25-b6db-b53096d0858b}", pos = Vector3.new(531.6004638671875, 227.50601196289062, 1209.6143798828125), rot = 90}
+    {
+        id = "Wall{d0bfa0d3-11c2-4606-b175-ecd58b9878f0}",
+        pos = vector.create(529.6004638671875, 227.50601196289062, 1187.6143798828125),
+        rot = 90
+    },
+    {
+        id = "Inferno Beam{538ce489-08e2-4a0e-9a7b-24792793dbb6}",
+        pos = vector.create(533.6004638671875, 227.50601196289062, 1197.6143798828125),
+        rot = 90
+    },
+    {
+        id = "Flamespitter{5c2cf563-40ae-4c75-9881-9e97f9b8cd66}",
+        pos = vector.create(525.6004638671875, 227.50601196289062, 1197.6143798828125),
+        rot = 90
+    },
+    {
+        id = "Rocket Artillery{84d378a0-3aeb-4e25-b6db-b53096d0858b}",
+        pos = vector.create(531.6004638671875, 227.50601196289062, 1209.6143798828125),
+        rot = 90
+    }
 }
 
+--// BUILD STRUCTURES - MEGA RAID (Fixed positions from your working code)
 local megaRaidBuildStructures = {
-    {id = "Wall{d0bfa0d3-11c2-4606-b175-ecd58b9878f0}", pos = Vector3.new(1539.6004638671875, 8.505999565124512, 1183.6143798828125), rot = 90},
-    {id = "Rocket Artillery{84d378a0-3aeb-4e25-b6db-b53096d0858b}", pos = Vector3.new(1541.6004638671875, 8.505999565124512, 1199.6143798828125), rot = 90},
-    {id = "Inferno Beam{538ce489-08e2-4a0e-9a7b-24792793dbb6}", pos = Vector3.new(1545.6004638671875, 8.505999565124512, 1191.6143798828125), rot = 90},
-    {id = "Inferno Beam{538ce489-08e2-4a0e-9a7b-24792793dbb6}", pos = Vector3.new(1545.6004638671875, 8.505999565124512, 1189.6143798828125), rot = 90},
-    {id = "Flamespitter{5c2cf563-40ae-4c75-9881-9e97f9b8cd66}", pos = Vector3.new(1537.6004638671875, 8.505999565124512, 1189.6143798828125), rot = 90}
+    {
+        id = "Wall{d0bfa0d3-11c2-4606-b175-ecd58b9878f0}",
+        pos = vector.create(1529.6004638671875, 8.505999565124512, 1191.6143798828125),
+        rot = 90
+    },
+    {
+        id = "Flamespitter{5c2cf563-40ae-4c75-9881-9e97f9b8cd66}",
+        pos = vector.create(1525.6004638671875, 8.505999565124512, 1199.6143798828125),
+        rot = 90
+    },
+    {
+        id = "Inferno Beam{538ce489-08e2-4a0e-9a7b-24792793dbb6}",
+        pos = vector.create(1533.6004638671875, 8.505999565124512, 1199.6143798828125),
+        rot = 90
+    },
+    {
+        id = "Rocket Artillery{84d378a0-3aeb-4e25-b6db-b53096d0858b}",
+        pos = vector.create(1529.6004638671875, 8.505999565124512, 1209.6143798828125),
+        rot = 90
+    }
 }
 
---// ITEMS
+--// ITEMS FOR AUTO BUY
 local items = {
     ["Bunny Cannon"]="E",["Bunny Bow"]="E",["Egg Launcher"]="E",
     ["Bunny Bomb Tower"]="E",["Egg Beam"]="E",
@@ -68,7 +110,7 @@ local items = {
     ["Cannon"]="N",["Wall"]="N"
 }
 
---// CHALLENGES
+--// AVAILABLE CHALLENGES
 local allChallenges = {
     {name = "Insane Challenge", id = "Insane Challenge"},
     {name = "Pro Challenge", id = "Pro Challenge"},
@@ -158,6 +200,92 @@ local function stopAntiAFK()
     if antiAFKThread then task.cancel(antiAFKThread) end
 end
 
+--// BUILD FUNCTIONS (FIXED - Using your working code)
+local function executeEasterBuild()
+    buildStatus.Text = "Building Easter structures..."
+    print("[Easter] Starting build...")
+    
+    pcall(function() joinEventRaid:FireServer() end)
+    task.wait(1)
+    
+    for i, s in ipairs(easterBuildStructures) do
+        buildStatus.Text = string.format("Building Easter %d/4...", i)
+        print("[Easter] Building:", s.id)
+        
+        pcall(function()
+            if eBuildDefense then
+                eBuildDefense:InvokeServer(s.id, {Rotation = s.rot, Position = s.pos})
+            end
+        end)
+        task.wait(0.5)
+    end
+    
+    buildStatus.Text = "✅ Easter build complete!"
+    print("[Easter] Build complete!")
+    task.wait(2)
+    buildStatus.Text = "Status: Ready"
+end
+
+local function executeMegaBuild()
+    buildStatus.Text = "Building Mega Raid structures..."
+    print("[Mega] Starting build...")
+    
+    pcall(function() joinCommunityRaid:FireServer() end)
+    task.wait(1)
+    
+    -- Wall
+    pcall(function()
+        if cBuildDefense then
+            cBuildDefense:InvokeServer(
+                "Wall{d0bfa0d3-11c2-4606-b175-ecd58b9878f0}",
+                {Rotation = 90, Position = vector.create(1529.6004638671875, 8.505999565124512, 1191.6143798828125)}
+            )
+            print("[Mega] Built Wall")
+        end
+    end)
+    task.wait(0.5)
+    
+    -- Flamespitter
+    pcall(function()
+        if cBuildDefense then
+            cBuildDefense:InvokeServer(
+                "Flamespitter{5c2cf563-40ae-4c75-9881-9e97f9b8cd66}",
+                {Rotation = 90, Position = vector.create(1525.6004638671875, 8.505999565124512, 1199.6143798828125)}
+            )
+            print("[Mega] Built Flamespitter")
+        end
+    end)
+    task.wait(0.5)
+    
+    -- Inferno Beam
+    pcall(function()
+        if cBuildDefense then
+            cBuildDefense:InvokeServer(
+                "Inferno Beam{538ce489-08e2-4a0e-9a7b-24792793dbb6}",
+                {Rotation = 90, Position = vector.create(1533.6004638671875, 8.505999565124512, 1199.6143798828125)}
+            )
+            print("[Mega] Built Inferno Beam")
+        end
+    end)
+    task.wait(0.5)
+    
+    -- Rocket Artillery
+    pcall(function()
+        if cBuildDefense then
+            cBuildDefense:InvokeServer(
+                "Rocket Artillery{84d378a0-3aeb-4e25-b6db-b53096d0858b}",
+                {Rotation = 90, Position = vector.create(1529.6004638671875, 8.505999565124512, 1209.6143798828125)}
+            )
+            print("[Mega] Built Rocket Artillery")
+        end
+    end)
+    
+    buildStatus.Text = "✅ Mega build complete!"
+    print("[Mega] Build complete!")
+    task.wait(2)
+    buildStatus.Text = "Status: Ready"
+end
+
 --// AUTO CHALLENGE LOOP
 local function runAutoChallenge()
     autoChallengeActive = true
@@ -185,39 +313,6 @@ local function stopAutoChallenge()
     autoChallengeActive = false
     if autoChallengeThread then task.cancel(autoChallengeThread) end
     if normalRaidActive then stopNormalRaid() end
-end
-
---// BUILD FUNCTIONS
-local function executeEasterBuild()
-    buildStatus.Text = "Building Easter..."
-    pcall(function() joinEventRaid:FireServer() end)
-    task.wait(1)
-    for _, s in ipairs(easterBuildStructures) do
-        pcall(function()
-            local args = {s.id, {Rotation = s.rot, Position = s.pos}}
-            eBuildDefense:InvokeServer(unpack(args))
-        end)
-        task.wait(0.5)
-    end
-    buildStatus.Text = "Easter complete!"
-    task.wait(2)
-    buildStatus.Text = "Status: Ready"
-end
-
-local function executeMegaBuild()
-    buildStatus.Text = "Building Mega Raid..."
-    pcall(function() joinCommunityRaid:FireServer() end)
-    task.wait(1)
-    for _, s in ipairs(megaRaidBuildStructures) do
-        pcall(function()
-            local args = {s.id, {Rotation = s.rot, Position = s.pos}}
-            cBuildDefense:InvokeServer(unpack(args))
-        end)
-        task.wait(0.5)
-    end
-    buildStatus.Text = "Mega complete!"
-    task.wait(2)
-    buildStatus.Text = "Status: Ready"
 end
 
 --// GUI CREATION
@@ -329,7 +424,7 @@ easterBuildBtn.Parent = buildPanel
 
 local megaBuildBtn = Instance.new("TextButton")
 megaBuildBtn.Size = UDim2.new(1, -20, 0, 50)
-megaBuildBtn.Text = "⚔️ BUILD MEGA RAID (5 Towers)"
+megaBuildBtn.Text = "⚔️ BUILD MEGA RAID (4 Towers)"
 megaBuildBtn.BackgroundColor3 = Color3.fromRGB(70, 50, 100)
 megaBuildBtn.TextColor3 = Color3.new(1, 1, 1)
 megaBuildBtn.Font = Enum.Font.GothamBold
@@ -957,7 +1052,15 @@ tabs.build.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
 if autoLoadConfig() then applyConfig() end
 refreshChallengeOrder()
 
+--// BUTTON CONNECTIONS
+easterBuildBtn.MouseButton1Click:Connect(function() task.spawn(executeEasterBuild) end)
+megaBuildBtn.MouseButton1Click:Connect(function() task.spawn(executeMegaBuild) end)
+
 print("=== TD AUTO FARM LOADED ===")
-print("Features: Auto Build, Auto Buy, Smart Auto-Challenge, Schedule, Auto-Save, Anti-AFK")
+print("✅ BUILD - Easter & Mega Raid (Fixed positions)")
+print("✅ BUY - Auto buy towers every 1 second")
+print("✅ CHALLENGE - Smart auto-challenge with raid fallback")
+print("✅ SCHEDULE - Easter (:15/:45), Mega (:00), Anti-AFK")
+print("✅ CONFIG - Auto-save/load settings")
 
 end)
