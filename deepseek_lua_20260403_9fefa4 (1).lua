@@ -1,4 +1,4 @@
---// COMPLETE TD AUTO FARM - FULLY FIXED (Update positions after game update)
+--// COMPLETE TD AUTO FARM - FULLY FIXED (Direct remote calls)
 pcall(function()
 
 --// SERVICES
@@ -8,7 +8,7 @@ local player = Players.LocalPlayer
 local HttpService = game:GetService("HttpService")
 local VirtualUser = game:GetService("VirtualUser")
 
---// VECTOR HELPER
+--// VECTOR HELPER (Critical for builds)
 local vector = vector or {
     create = function(x, y, z)
         return Vector3.new(x, y, z)
@@ -28,10 +28,6 @@ local joinEventRaid = remotesFolder:WaitForChild("JoinEventRaid")
 local joinCommunityRaid = remotesFolder:WaitForChild("JoinCommunityRaid")
 local raidStop = remotesFolder:WaitForChild("RaidStop")
 
--- Get build remotes
-local eBuildDefense = functionsFolder:FindFirstChild("EBuildDefense")
-local cBuildDefense = functionsFolder:FindFirstChild("CBuildDefense")
-
 --// PLAYER DATA
 local challengesFolder = player:FindFirstChild("Challenges")
 local playerFlags = player:FindFirstChild("Flags")
@@ -45,57 +41,6 @@ local normalRaidActive = false
 local currentChallengeName = nil
 local antiAFKActive = false
 local antiAFKThread = nil
-
---// ============== UPDATE THESE POSITIONS AFTER GAME UPDATE ==============
--- Use the position finder script below to get new coordinates
-
--- EASTER BUILD POSITIONS (UPDATE THESE)
-local easterBuildStructures = {
-    {
-        id = "Wall{d0bfa0d3-11c2-4606-b175-ecd58b9878f0}",
-        pos = vector.create(529.6004638671875, 227.50601196289062, 1191.6143798828125),  -- UPDATE
-        rot = 90
-    },
-    {
-        id = "Inferno Beam{538ce489-08e2-4a0e-9a7b-24792793dbb6}",
-        pos = vector.create(525.6004638671875, 227.50601196289062, 1201.6143798828125),  -- UPDATE
-        rot = 90
-    },
-    {
-        id = "Rocket Artillery{84d378a0-3aeb-4e25-b6db-b53096d0858b}",
-        pos = vector.create(529.6004638671875, 227.50601196289062, 1209.6143798828125),  -- UPDATE
-        rot = 90
-    },
-    {
-        id = "Flamespitter{5c2cf563-40ae-4c75-9881-9e97f9b8cd66}",
-        pos = vector.create(533.6004638671875, 227.50601196289062, 1199.6143798828125),  -- UPDATE
-        rot = 90
-    }
-}
-
--- MEGA RAID BUILD POSITIONS (UPDATE THESE)
-local megaRaidBuildStructures = {
-    {
-        id = "Wall{d0bfa0d3-11c2-4606-b175-ecd58b9878f0}",
-        pos = vector.create(1529.6004638671875, 8.505999565124512, 1191.6143798828125),  -- UPDATE
-        rot = 90
-    },
-    {
-        id = "Flamespitter{5c2cf563-40ae-4c75-9881-9e97f9b8cd66}",
-        pos = vector.create(1525.6004638671875, 8.505999565124512, 1199.6143798828125),  -- UPDATE
-        rot = 90
-    },
-    {
-        id = "Inferno Beam{538ce489-08e2-4a0e-9a7b-24792793dbb6}",
-        pos = vector.create(1533.6004638671875, 8.505999565124512, 1199.6143798828125),  -- UPDATE
-        rot = 90
-    },
-    {
-        id = "Rocket Artillery{84d378a0-3aeb-4e25-b6db-b53096d0858b}",
-        pos = vector.create(1529.6004638671875, 8.505999565124512, 1209.6143798828125),  -- UPDATE
-        rot = 90
-    }
-}
 
 --// ITEMS FOR AUTO BUY
 local items = {
@@ -202,7 +147,8 @@ local function stopAntiAFK()
     if antiAFKThread then task.cancel(antiAFKThread) end
 end
 
---// BUILD FUNCTIONS
+--// ============== FIXED BUILD FUNCTIONS (Direct remote calls) ==============
+
 local function executeEasterBuild()
     buildStatus.Text = "Building Easter structures..."
     print("[Easter] Starting build...")
@@ -210,17 +156,48 @@ local function executeEasterBuild()
     pcall(function() joinEventRaid:FireServer() end)
     task.wait(1)
     
-    for i, s in ipairs(easterBuildStructures) do
-        buildStatus.Text = string.format("Building Easter %d/4...", i)
-        print("[Easter] Building:", s.id)
-        
-        pcall(function()
-            if eBuildDefense then
-                eBuildDefense:InvokeServer(s.id, {Rotation = s.rot, Position = s.pos})
-            end
-        end)
-        task.wait(0.5)
-    end
+    -- Build Flamespitter
+    local args1 = {
+        "Flamespitter{5c2cf563-40ae-4c75-9881-9e97f9b8cd66}",
+        {Rotation = 90, Position = vector.create(533.6004638671875, 227.50601196289062, 1199.6143798828125)}
+    }
+    pcall(function()
+        game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("EBuildDefense"):InvokeServer(unpack(args1))
+        print("[Easter] Built Flamespitter")
+    end)
+    task.wait(0.5)
+    
+    -- Build Inferno Beam
+    local args2 = {
+        "Inferno Beam{538ce489-08e2-4a0e-9a7b-24792793dbb6}",
+        {Rotation = 90, Position = vector.create(525.6004638671875, 227.50601196289062, 1199.6143798828125)}
+    }
+    pcall(function()
+        game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("EBuildDefense"):InvokeServer(unpack(args2))
+        print("[Easter] Built Inferno Beam")
+    end)
+    task.wait(0.5)
+    
+    -- Build Wall
+    local args3 = {
+        "Wall{d0bfa0d3-11c2-4606-b175-ecd58b9878f0}",
+        {Rotation = 90, Position = vector.create(527.6004638671875, 227.50601196289062, 1193.6143798828125)}
+    }
+    pcall(function()
+        game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("EBuildDefense"):InvokeServer(unpack(args3))
+        print("[Easter] Built Wall")
+    end)
+    task.wait(0.5)
+    
+    -- Build Rocket Artillery
+    local args4 = {
+        "Rocket Artillery{84d378a0-3aeb-4e25-b6db-b53096d0858b}",
+        {Rotation = 90, Position = vector.create(529.6004638671875, 227.50601196289062, 1209.6143798828125)}
+    }
+    pcall(function()
+        game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("EBuildDefense"):InvokeServer(unpack(args4))
+        print("[Easter] Built Rocket Artillery")
+    end)
     
     buildStatus.Text = "✅ Easter build complete!"
     print("[Easter] Build complete!")
@@ -235,56 +212,53 @@ local function executeMegaBuild()
     pcall(function() joinCommunityRaid:FireServer() end)
     task.wait(1)
     
-    for i, s in ipairs(megaRaidBuildStructures) do
-        buildStatus.Text = string.format("Building Mega %d/4...", i)
-        print("[Mega] Building:", s.id)
-        
-        pcall(function()
-            if cBuildDefense then
-                cBuildDefense:InvokeServer(s.id, {Rotation = s.rot, Position = s.pos})
-            end
-        end)
-        task.wait(0.5)
-    end
+    -- Build Wall
+    local args1 = {
+        "Wall{d0bfa0d3-11c2-4606-b175-ecd58b9878f0}",
+        {Rotation = 90, Position = vector.create(1529.6004638671875, 8.505999565124512, 1191.6143798828125)}
+    }
+    pcall(function()
+        game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("CBuildDefense"):InvokeServer(unpack(args1))
+        print("[Mega] Built Wall")
+    end)
+    task.wait(0.5)
+    
+    -- Build Flamespitter
+    local args2 = {
+        "Flamespitter{5c2cf563-40ae-4c75-9881-9e97f9b8cd66}",
+        {Rotation = 90, Position = vector.create(1525.6004638671875, 8.505999565124512, 1199.6143798828125)}
+    }
+    pcall(function()
+        game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("CBuildDefense"):InvokeServer(unpack(args2))
+        print("[Mega] Built Flamespitter")
+    end)
+    task.wait(0.5)
+    
+    -- Build Inferno Beam
+    local args3 = {
+        "Inferno Beam{538ce489-08e2-4a0e-9a7b-24792793dbb6}",
+        {Rotation = 90, Position = vector.create(1533.6004638671875, 8.505999565124512, 1199.6143798828125)}
+    }
+    pcall(function()
+        game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("CBuildDefense"):InvokeServer(unpack(args3))
+        print("[Mega] Built Inferno Beam")
+    end)
+    task.wait(0.5)
+    
+    -- Build Rocket Artillery
+    local args4 = {
+        "Rocket Artillery{84d378a0-3aeb-4e25-b6db-b53096d0858b}",
+        {Rotation = 90, Position = vector.create(1529.6004638671875, 8.505999565124512, 1209.6143798828125)}
+    }
+    pcall(function()
+        game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("CBuildDefense"):InvokeServer(unpack(args4))
+        print("[Mega] Built Rocket Artillery")
+    end)
     
     buildStatus.Text = "✅ Mega build complete!"
     print("[Mega] Build complete!")
     task.wait(2)
     buildStatus.Text = "Status: Ready"
-end
-
---// POSITION FINDER HELPER (Run this to get new coordinates)
-local function findCurrentPosition()
-    local char = player.Character
-    if char and char.PrimaryPart then
-        local pos = char.PrimaryPart.Position
-        print(string.format("Current position: X=%.1f, Y=%.1f, Z=%.1f", pos.X, pos.Y, pos.Z))
-        print(string.format('vector.create(%.1f, %.1f, %.1f)', pos.X, pos.Y, pos.Z))
-        return pos
-    end
-    return nil
-end
-
-local function testBuildAtPosition()
-    local char = player.Character
-    if char and char.PrimaryPart then
-        local pos = char.PrimaryPart.Position
-        print("[Test] Attempting build at current position...")
-        
-        local success = pcall(function()
-            eBuildDefense:InvokeServer(
-                "Wall{d0bfa0d3-11c2-4606-b175-ecd58b9878f0}",
-                {Rotation = 90, Position = pos}
-            )
-        end)
-        
-        if success then
-            print("✅ BUILD SUCCESSFUL! Use this position:")
-            print(string.format('vector.create(%.1f, %.1f, %.1f)', pos.X, pos.Y, pos.Z))
-        else
-            print("❌ Build failed - may need to be in correct area")
-        end
-    end
 end
 
 --// AUTO CHALLENGE LOOP
@@ -415,6 +389,7 @@ end
 
 --// BUILD TAB
 local buildPanel = panels.build
+
 local easterBuildBtn = Instance.new("TextButton")
 easterBuildBtn.Size = UDim2.new(1, -20, 0, 50)
 easterBuildBtn.Text = "🐰 BUILD EASTER (4 Towers)"
@@ -431,46 +406,16 @@ megaBuildBtn.TextColor3 = Color3.new(1, 1, 1)
 megaBuildBtn.Font = Enum.Font.GothamBold
 megaBuildBtn.Parent = buildPanel
 
--- Debug buttons for position finding
-local getPosBtn = Instance.new("TextButton")
-getPosBtn.Size = UDim2.new(0.48, -5, 0, 35)
-getPosBtn.Text = "📍 GET MY POSITION"
-getPosBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
-getPosBtn.TextColor3 = Color3.new(1, 1, 1)
-getPosBtn.Parent = buildPanel
-getPosBtn.Position = UDim2.new(0, 10, 0, 160)
-
-local testBuildBtn = Instance.new("TextButton")
-testBuildBtn.Size = UDim2.new(0.48, -5, 0, 35)
-testBuildBtn.Text = "🔧 TEST BUILD HERE"
-testBuildBtn.BackgroundColor3 = Color3.fromRGB(100, 80, 50)
-testBuildBtn.TextColor3 = Color3.new(1, 1, 1)
-testBuildBtn.Parent = buildPanel
-testBuildBtn.Position = UDim2.new(0.52, 0, 0, 160)
-
-getPosBtn.MouseButton1Click:Connect(function()
-    local pos = findCurrentPosition()
-    if pos then
-        buildStatus.Text = string.format("Pos: %.0f, %.0f, %.0f", pos.X, pos.Y, pos.Z)
-    else
-        buildStatus.Text = "Can't get position - no character"
-    end
-end)
-
-testBuildBtn.MouseButton1Click:Connect(function()
-    task.spawn(testBuildAtPosition)
-end)
-
 local buildStatus = Instance.new("TextLabel")
 buildStatus.Size = UDim2.new(1, -20, 0, 40)
 buildStatus.Text = "Status: Ready"
 buildStatus.TextColor3 = Color3.new(1, 1, 1)
 buildStatus.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
 buildStatus.Parent = buildPanel
-buildStatus.Position = UDim2.new(0, 10, 0, 210)
 
 --// BUY TAB
 local buyPanel = panels.buy
+
 local searchBox = Instance.new("TextBox")
 searchBox.Size = UDim2.new(1, -20, 0, 30)
 searchBox.PlaceholderText = "🔍 Search item..."
@@ -496,6 +441,7 @@ for name, typ in pairs(items) do
     btn.TextXAlignment = Enum.TextXAlignment.Left
     btn.Parent = itemsScroll
     itemButtons[name] = btn
+    
     local sel = false
     btn.MouseButton1Click:Connect(function()
         sel = not sel
@@ -1089,13 +1035,10 @@ easterBuildBtn.MouseButton1Click:Connect(function() task.spawn(executeEasterBuil
 megaBuildBtn.MouseButton1Click:Connect(function() task.spawn(executeMegaBuild) end)
 
 print("=== TD AUTO FARM LOADED ===")
-print("✅ BUILD - Easter & Mega Raid (Use 'GET MY POSITION' to find new coordinates)")
+print("✅ BUILD - Easter & Mega Raid (Direct remote calls - FIXED)")
 print("✅ BUY - Auto buy towers every 1 second")
 print("✅ CHALLENGE - Smart auto-challenge with raid fallback")
 print("✅ SCHEDULE - Easter (:15/:45), Mega (:00), Anti-AFK")
 print("✅ CONFIG - Auto-save/load settings")
-print("")
-print("⚠️ GAME UPDATED - Use 'GET MY POSITION' button to find new build coordinates!")
-print("   Stand where you want to build, click the button, then update the script")
 
 end)
