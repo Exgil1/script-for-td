@@ -11,7 +11,7 @@ local player = Players.LocalPlayer
 local HttpService = game:GetService("HttpService")
 local VirtualUser = game:GetService("VirtualUser")
 
---// VECTOR HELPER
+-- This MUST be at the VERY TOP of the script
 local vector = vector or {
     create = function(x, y, z)
         return Vector3.new(x, y, z)
