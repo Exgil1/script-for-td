@@ -1,6 +1,3 @@
-Here's the **complete full script** with all features including Anti-AFK:
-
-```lua
 --// COMPLETE TD AUTO FARM - FULLY WORKING WITH ANTI-AFK
 pcall(function()
 
@@ -11,13 +8,12 @@ local player = Players.LocalPlayer
 local HttpService = game:GetService("HttpService")
 local VirtualUser = game:GetService("VirtualUser")
 
-
-        local vector = vector or {
+--// VECTOR HELPER (MUST BE DEFINED FIRST)
+local vector = {
     create = function(x, y, z)
         return Vector3.new(x, y, z)
     end
 }
-
 
 --// REMOTES
 local events = ReplicatedStorage:WaitForChild("Events")
@@ -47,7 +43,7 @@ local challengeDurations = {
     ["Easter Challenge #2"] = 15 * 60,
 }
 
---// BUILD STRUCTURES
+--// BUILD STRUCTURES (USING VECTOR.CREATE)
 local easterBuildStructures = {
     {id = "Wall{d0bfa0d3-11c2-4606-b175-ecd58b9878f0}", pos = vector.create(525.6004638671875, 227.50601196289062, 1187.6143798828125), rot = 90},
     {id = "Flamespitter{5c2cf563-40ae-4c75-9881-9e97f9b8cd66}", pos = vector.create(527.6004638671875, 227.50601196289062, 1193.6143798828125), rot = 90},
@@ -276,38 +272,38 @@ local function stopAutoChallenge()
     if countdownDisplay then countdownDisplay.Text = "---" end
 end
 
---// BUILD FUNCTIONS
+--// BUILD FUNCTIONS (EXACT MATCH TO YOUR WORKING CODE)
 local function executeEasterBuild()
     print("[Easter] Starting build...")
     pcall(function() joinEventRaid:FireServer() end)
     task.wait(1)
     
-    pcall(function()
-        local args = {"Wall{d0bfa0d3-11c2-4606-b175-ecd58b9878f0}", {Rotation = 90, Position = vector.create(525.6004638671875, 227.50601196289062, 1187.6143798828125)}}
-        game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("EBuildDefense"):InvokeServer(unpack(args))
-        print("[Easter] Wall built")
-    end)
+    local args1 = {
+        "Wall{d0bfa0d3-11c2-4606-b175-ecd58b9878f0}",
+        {Rotation = 90, Position = vector.create(525.6004638671875, 227.50601196289062, 1187.6143798828125)}
+    }
+    game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("EBuildDefense"):InvokeServer(unpack(args1))
     task.wait(0.5)
     
-    pcall(function()
-        local args = {"Flamespitter{5c2cf563-40ae-4c75-9881-9e97f9b8cd66}", {Rotation = 90, Position = vector.create(527.6004638671875, 227.50601196289062, 1193.6143798828125)}}
-        game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("EBuildDefense"):InvokeServer(unpack(args))
-        print("[Easter] Flamespitter built")
-    end)
+    local args2 = {
+        "Flamespitter{5c2cf563-40ae-4c75-9881-9e97f9b8cd66}",
+        {Rotation = 90, Position = vector.create(527.6004638671875, 227.50601196289062, 1193.6143798828125)}
+    }
+    game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("EBuildDefense"):InvokeServer(unpack(args2))
     task.wait(0.5)
     
-    pcall(function()
-        local args = {"Railgun{cba7bbf3-aaab-4cde-92df-67ac6c4ebda0}", {Rotation = 90, Position = vector.create(535.6004638671875, 227.50601196289062, 1209.6143798828125)}}
-        game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("EBuildDefense"):InvokeServer(unpack(args))
-        print("[Easter] Railgun built")
-    end)
+    local args3 = {
+        "Railgun{cba7bbf3-aaab-4cde-92df-67ac6c4ebda0}",
+        {Rotation = 90, Position = vector.create(535.6004638671875, 227.50601196289062, 1209.6143798828125)}
+    }
+    game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("EBuildDefense"):InvokeServer(unpack(args3))
     task.wait(0.5)
     
-    pcall(function()
-        local args = {"Inferno Beam{538ce489-08e2-4a0e-9a7b-24792793dbb6}", {Rotation = 90, Position = vector.create(535.6004638671875, 227.50601196289062, 1199.6143798828125)}}
-        game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("EBuildDefense"):InvokeServer(unpack(args))
-        print("[Easter] Inferno Beam built")
-    end)
+    local args4 = {
+        "Inferno Beam{538ce489-08e2-4a0e-9a7b-24792793dbb6}",
+        {Rotation = 90, Position = vector.create(535.6004638671875, 227.50601196289062, 1199.6143798828125)}
+    }
+    game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("EBuildDefense"):InvokeServer(unpack(args4))
     
     if buildStatus then buildStatus.Text = "✅ Easter complete!" end
     print("[Easter] Complete!")
@@ -320,32 +316,32 @@ local function executeMegaBuild()
     pcall(function() joinCommunityRaid:FireServer() end)
     task.wait(1)
     
-    pcall(function()
-        local args = {"Wall{d0bfa0d3-11c2-4606-b175-ecd58b9878f0}", {Rotation = 90, Position = vector.create(1529.6004638671875, 8.505999565124512, 1189.6143798828125)}}
-        game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("CBuildDefense"):InvokeServer(unpack(args))
-        print("[Mega] Wall built")
-    end)
+    local args1 = {
+        "Wall{d0bfa0d3-11c2-4606-b175-ecd58b9878f0}",
+        {Rotation = 90, Position = vector.create(1529.6004638671875, 8.505999565124512, 1189.6143798828125)}
+    }
+    game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("CBuildDefense"):InvokeServer(unpack(args1))
     task.wait(0.5)
     
-    pcall(function()
-        local args = {"Flamespitter{5c2cf563-40ae-4c75-9881-9e97f9b8cd66}", {Rotation = 90, Position = vector.create(1523.6004638671875, 8.505999565124512, 1197.6143798828125)}}
-        game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("CBuildDefense"):InvokeServer(unpack(args))
-        print("[Mega] Flamespitter built")
-    end)
+    local args2 = {
+        "Flamespitter{5c2cf563-40ae-4c75-9881-9e97f9b8cd66}",
+        {Rotation = 90, Position = vector.create(1523.6004638671875, 8.505999565124512, 1197.6143798828125)}
+    }
+    game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("CBuildDefense"):InvokeServer(unpack(args2))
     task.wait(0.5)
     
-    pcall(function()
-        local args = {"Inferno Beam{538ce489-08e2-4a0e-9a7b-24792793dbb6}", {Rotation = 90, Position = vector.create(1531.6004638671875, 8.505999565124512, 1199.6143798828125)}}
-        game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("CBuildDefense"):InvokeServer(unpack(args))
-        print("[Mega] Inferno Beam built")
-    end)
+    local args3 = {
+        "Inferno Beam{538ce489-08e2-4a0e-9a7b-24792793dbb6}",
+        {Rotation = 90, Position = vector.create(1531.6004638671875, 8.505999565124512, 1199.6143798828125)}
+    }
+    game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("CBuildDefense"):InvokeServer(unpack(args3))
     task.wait(0.5)
     
-    pcall(function()
-        local args = {"Railgun{cba7bbf3-aaab-4cde-92df-67ac6c4ebda0}", {Rotation = 90, Position = vector.create(1527.6004638671875, 8.505999565124512, 1209.6143798828125)}}
-        game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("CBuildDefense"):InvokeServer(unpack(args))
-        print("[Mega] Railgun built")
-    end)
+    local args4 = {
+        "Railgun{cba7bbf3-aaab-4cde-92df-67ac6c4ebda0}",
+        {Rotation = 90, Position = vector.create(1527.6004638671875, 8.505999565124512, 1209.6143798828125)}
+    }
+    game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("CBuildDefense"):InvokeServer(unpack(args4))
     
     if buildStatus then buildStatus.Text = "✅ Mega complete!" end
     print("[Mega] Complete!")
@@ -1083,22 +1079,3 @@ print("✅ SCHEDULE - Easter (:15/:45), Mega (:00), Anti-AFK")
 print("✅ CONFIG - Auto-save/load settings")
 
 end)
-```
-
-## Features Summary:
-
-| Tab | Features |
-|-----|----------|
-| **🏗️ BUILD** | Easter (4 towers) & Mega Raid (4 towers) with Railgun |
-| **🛒 BUY** | Searchable tower list, auto-buy every 1 second |
-| **🎯 CHALLENGE** | Enable/disable challenges, reorder priority, cooldown detection, auto-raid fallback, refresh button |
-| **⏰ SCHEDULE** | Easter at :15 & :45, Mega at :00, **Anti-AFK toggle** |
-| **💾 CONFIG** | Auto-save/load settings, export/import |
-
-The script now includes:
-- ✅ Anti-AFK system (prevents being kicked for inactivity)
-- ✅ Build functions with correct Railgun positions
-- ✅ Challenge cooldown detection using `NextAvailableTime`
-- ✅ Auto-raid fallback when no challenges available
-- ✅ Refresh button to manually update cooldown status
-- ✅ Schedule system for automatic builds
