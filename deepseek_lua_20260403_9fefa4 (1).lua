@@ -1,4 +1,4 @@
---// COMPLETE TD AUTO FARM - FULLY FIXED (Direct remote calls)
+--// COMPLETE TD AUTO FARM - FULLY WORKING
 pcall(function()
 
 --// SERVICES
@@ -6,9 +6,8 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local player = Players.LocalPlayer
 local HttpService = game:GetService("HttpService")
-local VirtualUser = game:GetService("VirtualUser")
 
---// VECTOR HELPER (Critical for builds)
+--// VECTOR HELPER
 local vector = vector or {
     create = function(x, y, z)
         return Vector3.new(x, y, z)
@@ -28,19 +27,52 @@ local joinEventRaid = remotesFolder:WaitForChild("JoinEventRaid")
 local joinCommunityRaid = remotesFolder:WaitForChild("JoinCommunityRaid")
 local raidStop = remotesFolder:WaitForChild("RaidStop")
 
---// PLAYER DATA
-local challengesFolder = player:FindFirstChild("Challenges")
-local playerFlags = player:FindFirstChild("Flags")
-local raidingFlag = playerFlags and playerFlags:FindFirstChild("Raiding")
-local challengeActiveFlag = playerFlags and playerFlags:FindFirstChild("ChallengeActive")
+--// BUILD STRUCTURES (UPDATED WITH CORRECT POSITIONS)
+local easterBuildStructures = {
+    {
+        id = "Wall{d0bfa0d3-11c2-4606-b175-ecd58b9878f0}",
+        pos = vector.create(525.6004638671875, 227.50601196289062, 1187.6143798828125),
+        rot = 90
+    },
+    {
+        id = "Flamespitter{5c2cf563-40ae-4c75-9881-9e97f9b8cd66}",
+        pos = vector.create(527.6004638671875, 227.50601196289062, 1193.6143798828125),
+        rot = 90
+    },
+    {
+        id = "Railgun{cba7bbf3-aaab-4cde-92df-67ac6c4ebda0}",
+        pos = vector.create(535.6004638671875, 227.50601196289062, 1209.6143798828125),
+        rot = 90
+    },
+    {
+        id = "Inferno Beam{538ce489-08e2-4a0e-9a7b-24792793dbb6}",
+        pos = vector.create(535.6004638671875, 227.50601196289062, 1199.6143798828125),
+        rot = 90
+    }
+}
 
---// GLOBAL VARIABLES
-local autoChallengeActive = false
-local autoChallengeThread = nil
-local normalRaidActive = false
-local currentChallengeName = nil
-local antiAFKActive = false
-local antiAFKThread = nil
+local megaRaidBuildStructures = {
+    {
+        id = "Wall{d0bfa0d3-11c2-4606-b175-ecd58b9878f0}",
+        pos = vector.create(1529.6004638671875, 8.505999565124512, 1189.6143798828125),
+        rot = 90
+    },
+    {
+        id = "Flamespitter{5c2cf563-40ae-4c75-9881-9e97f9b8cd66}",
+        pos = vector.create(1523.6004638671875, 8.505999565124512, 1197.6143798828125),
+        rot = 90
+    },
+    {
+        id = "Inferno Beam{538ce489-08e2-4a0e-9a7b-24792793dbb6}",
+        pos = vector.create(1531.6004638671875, 8.505999565124512, 1199.6143798828125),
+        rot = 90
+    },
+    {
+        id = "Railgun{cba7bbf3-aaab-4cde-92df-67ac6c4ebda0}",
+        pos = vector.create(1527.6004638671875, 8.505999565124512, 1209.6143798828125),
+        rot = 90
+    }
+}
 
 --// ITEMS FOR AUTO BUY
 local items = {
@@ -66,242 +98,134 @@ local allChallenges = {
     {name = "Godly Challenge", id = "Godly Challenge"}
 }
 
+--// GLOBAL VARIABLES
+local autoChallengeActive = false
+local autoChallengeThread = nil
 local challengeOrder = {}
 local challengeItems = {}
 
---// CORE FUNCTIONS
-local function getChallengeCooldown(challengeName)
-    if not challengesFolder then return 0 end
-    local node = challengesFolder:FindFirstChild(challengeName)
-    if not node then node = challengesFolder:FindFirstChild(challengeName:gsub(" ", "")) end
-    if node then
-        local nextAvail = node:FindFirstChild("NextAvailableTime")
-        if nextAvail then return math.max(0, nextAvail.Value - os.time()) end
-    end
-    return 0
-end
-
-local function isChallengeAvailable(name) return getChallengeCooldown(name) == 0 end
-local function isInChallenge() return challengeActiveFlag and challengeActiveFlag.Value == true end
-local function isInRaid() return raidingFlag and raidingFlag.Value == true end
-
-local function startNormalRaid()
-    if not normalRaidActive then
-        pcall(function() changeSetting:InvokeServer("AutoRaid", "Off") end)
-        normalRaidActive = true
-    end
-end
-
-local function stopNormalRaid()
-    if normalRaidActive then
-        pcall(function() changeSetting:InvokeServer("AutoRaid", "On") end)
-        normalRaidActive = false
-    end
-end
-
-local function startChallengeByName(name)
-    currentChallengeName = name
-    pcall(function()
-        raidStop:FireServer()
-        task.wait(0.5)
-        startChallenge:InvokeServer(name)
-        task.wait(0.5)
-        changeSetting:InvokeServer("AutoRaid", "On")
-    end)
-end
-
-local function waitForChallengeToEnd()
-    while isInChallenge() or isInRaid() do task.wait(1) end
-    currentChallengeName = nil
-end
-
-local function getNextAvailable()
-    for _, ch in ipairs(challengeOrder) do
-        if ch.enabled and isChallengeAvailable(ch.name) then return ch end
-    end
-    return nil
-end
-
---// ANTI-AFK
-local function startAntiAFK()
-    if antiAFKActive then return end
-    antiAFKActive = true
-    antiAFKThread = task.spawn(function()
-        while antiAFKActive do
-            pcall(function() VirtualUser:CaptureController() VirtualUser:ClickButton2(Vector2.new()) end)
-            task.wait(45)
-            pcall(function()
-                local cam = workspace.CurrentCamera
-                local orig = cam.CFrame
-                cam.CFrame = cam.CFrame * CFrame.Angles(0, math.rad(0.1), 0)
-                task.wait(0.3)
-                cam.CFrame = orig
-            end)
-            task.wait(60)
-        end
-    end)
-end
-
-local function stopAntiAFK()
-    antiAFKActive = false
-    if antiAFKThread then task.cancel(antiAFKThread) end
-end
-
---// ============== FIXED BUILD FUNCTIONS (Direct remote calls) ==============
+--// ============== BUILD FUNCTIONS (DIRECT REMOTE CALLS) ==============
 
 local function executeEasterBuild()
-    buildStatus.Text = "Building Easter structures..."
     print("[Easter] Starting build...")
     
     pcall(function() joinEventRaid:FireServer() end)
     task.wait(1)
     
-    -- Build Flamespitter
-    local args1 = {
-        "Flamespitter{5c2cf563-40ae-4c75-9881-9e97f9b8cd66}",
-        {Rotation = 90, Position = vector.create(533.6004638671875, 227.50601196289062, 1199.6143798828125)}
-    }
+    -- Wall
     pcall(function()
-        game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("EBuildDefense"):InvokeServer(unpack(args1))
-        print("[Easter] Built Flamespitter")
+        local args = {
+            "Wall{d0bfa0d3-11c2-4606-b175-ecd58b9878f0}",
+            {Rotation = 90, Position = vector.create(525.6004638671875, 227.50601196289062, 1187.6143798828125)}
+        }
+        game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("EBuildDefense"):InvokeServer(unpack(args))
+        print("[Easter] Wall built")
     end)
     task.wait(0.5)
     
-    -- Build Inferno Beam
-    local args2 = {
-        "Inferno Beam{538ce489-08e2-4a0e-9a7b-24792793dbb6}",
-        {Rotation = 90, Position = vector.create(525.6004638671875, 227.50601196289062, 1199.6143798828125)}
-    }
+    -- Flamespitter
     pcall(function()
-        game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("EBuildDefense"):InvokeServer(unpack(args2))
-        print("[Easter] Built Inferno Beam")
+        local args = {
+            "Flamespitter{5c2cf563-40ae-4c75-9881-9e97f9b8cd66}",
+            {Rotation = 90, Position = vector.create(527.6004638671875, 227.50601196289062, 1193.6143798828125)}
+        }
+        game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("EBuildDefense"):InvokeServer(unpack(args))
+        print("[Easter] Flamespitter built")
     end)
     task.wait(0.5)
     
-    -- Build Wall
-    local args3 = {
-        "Wall{d0bfa0d3-11c2-4606-b175-ecd58b9878f0}",
-        {Rotation = 90, Position = vector.create(527.6004638671875, 227.50601196289062, 1193.6143798828125)}
-    }
+    -- Railgun
     pcall(function()
-        game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("EBuildDefense"):InvokeServer(unpack(args3))
-        print("[Easter] Built Wall")
+        local args = {
+            "Railgun{cba7bbf3-aaab-4cde-92df-67ac6c4ebda0}",
+            {Rotation = 90, Position = vector.create(535.6004638671875, 227.50601196289062, 1209.6143798828125)}
+        }
+        game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("EBuildDefense"):InvokeServer(unpack(args))
+        print("[Easter] Railgun built")
     end)
     task.wait(0.5)
     
-    -- Build Rocket Artillery
-    local args4 = {
-        "Rocket Artillery{84d378a0-3aeb-4e25-b6db-b53096d0858b}",
-        {Rotation = 90, Position = vector.create(529.6004638671875, 227.50601196289062, 1209.6143798828125)}
-    }
+    -- Inferno Beam
     pcall(function()
-        game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("EBuildDefense"):InvokeServer(unpack(args4))
-        print("[Easter] Built Rocket Artillery")
+        local args = {
+            "Inferno Beam{538ce489-08e2-4a0e-9a7b-24792793dbb6}",
+            {Rotation = 90, Position = vector.create(535.6004638671875, 227.50601196289062, 1199.6143798828125)}
+        }
+        game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("EBuildDefense"):InvokeServer(unpack(args))
+        print("[Easter] Inferno Beam built")
     end)
     
-    buildStatus.Text = "✅ Easter build complete!"
-    print("[Easter] Build complete!")
+    if buildStatus then buildStatus.Text = "✅ Easter complete!" end
+    print("[Easter] Complete!")
     task.wait(2)
-    buildStatus.Text = "Status: Ready"
+    if buildStatus then buildStatus.Text = "Status: Ready" end
 end
 
 local function executeMegaBuild()
-    buildStatus.Text = "Building Mega Raid structures..."
     print("[Mega] Starting build...")
     
     pcall(function() joinCommunityRaid:FireServer() end)
     task.wait(1)
     
-    -- Build Wall
-    local args1 = {
-        "Wall{d0bfa0d3-11c2-4606-b175-ecd58b9878f0}",
-        {Rotation = 90, Position = vector.create(1529.6004638671875, 8.505999565124512, 1191.6143798828125)}
-    }
+    -- Wall
     pcall(function()
-        game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("CBuildDefense"):InvokeServer(unpack(args1))
-        print("[Mega] Built Wall")
+        local args = {
+            "Wall{d0bfa0d3-11c2-4606-b175-ecd58b9878f0}",
+            {Rotation = 90, Position = vector.create(1529.6004638671875, 8.505999565124512, 1189.6143798828125)}
+        }
+        game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("CBuildDefense"):InvokeServer(unpack(args))
+        print("[Mega] Wall built")
     end)
     task.wait(0.5)
     
-    -- Build Flamespitter
-    local args2 = {
-        "Flamespitter{5c2cf563-40ae-4c75-9881-9e97f9b8cd66}",
-        {Rotation = 90, Position = vector.create(1525.6004638671875, 8.505999565124512, 1199.6143798828125)}
-    }
+    -- Flamespitter
     pcall(function()
-        game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("CBuildDefense"):InvokeServer(unpack(args2))
-        print("[Mega] Built Flamespitter")
+        local args = {
+            "Flamespitter{5c2cf563-40ae-4c75-9881-9e97f9b8cd66}",
+            {Rotation = 90, Position = vector.create(1523.6004638671875, 8.505999565124512, 1197.6143798828125)}
+        }
+        game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("CBuildDefense"):InvokeServer(unpack(args))
+        print("[Mega] Flamespitter built")
     end)
     task.wait(0.5)
     
-    -- Build Inferno Beam
-    local args3 = {
-        "Inferno Beam{538ce489-08e2-4a0e-9a7b-24792793dbb6}",
-        {Rotation = 90, Position = vector.create(1533.6004638671875, 8.505999565124512, 1199.6143798828125)}
-    }
+    -- Inferno Beam
     pcall(function()
-        game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("CBuildDefense"):InvokeServer(unpack(args3))
-        print("[Mega] Built Inferno Beam")
+        local args = {
+            "Inferno Beam{538ce489-08e2-4a0e-9a7b-24792793dbb6}",
+            {Rotation = 90, Position = vector.create(1531.6004638671875, 8.505999565124512, 1199.6143798828125)}
+        }
+        game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("CBuildDefense"):InvokeServer(unpack(args))
+        print("[Mega] Inferno Beam built")
     end)
     task.wait(0.5)
     
-    -- Build Rocket Artillery
-    local args4 = {
-        "Rocket Artillery{84d378a0-3aeb-4e25-b6db-b53096d0858b}",
-        {Rotation = 90, Position = vector.create(1529.6004638671875, 8.505999565124512, 1209.6143798828125)}
-    }
+    -- Railgun
     pcall(function()
-        game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("CBuildDefense"):InvokeServer(unpack(args4))
-        print("[Mega] Built Rocket Artillery")
+        local args = {
+            "Railgun{cba7bbf3-aaab-4cde-92df-67ac6c4ebda0}",
+            {Rotation = 90, Position = vector.create(1527.6004638671875, 8.505999565124512, 1209.6143798828125)}
+        }
+        game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("CBuildDefense"):InvokeServer(unpack(args))
+        print("[Mega] Railgun built")
     end)
     
-    buildStatus.Text = "✅ Mega build complete!"
-    print("[Mega] Build complete!")
+    if buildStatus then buildStatus.Text = "✅ Mega complete!" end
+    print("[Mega] Complete!")
     task.wait(2)
-    buildStatus.Text = "Status: Ready"
+    if buildStatus then buildStatus.Text = "Status: Ready" end
 end
 
---// AUTO CHALLENGE LOOP
-local function runAutoChallenge()
-    autoChallengeActive = true
-    autoChallengeThread = task.spawn(function()
-        while autoChallengeActive do
-            if isInChallenge() then
-                waitForChallengeToEnd()
-                task.wait(2)
-            end
-            local nextCh = getNextAvailable()
-            if nextCh then
-                if normalRaidActive then stopNormalRaid() end
-                startChallengeByName(nextCh.id)
-                waitForChallengeToEnd()
-                task.wait(2)
-            else
-                if not normalRaidActive then startNormalRaid() end
-                task.wait(10)
-            end
-        end
-    end)
-end
-
-local function stopAutoChallenge()
-    autoChallengeActive = false
-    if autoChallengeThread then task.cancel(autoChallengeThread) end
-    if normalRaidActive then stopNormalRaid() end
-end
-
---// GUI CREATION
+--// ============== GUI ==============
 local gui = Instance.new("ScreenGui")
 gui.Name = "TDAutoFarm"
 gui.ResetOnSpawn = false
 gui.Parent = game:GetService("CoreGui")
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 500, 0, 750)
-mainFrame.Position = UDim2.new(0, 10, 0, 30)
-mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
-mainFrame.BorderSizePixel = 2
-mainFrame.BorderColor3 = Color3.fromRGB(100, 200, 100)
+mainFrame.Size = UDim2.new(0, 450, 0, 650)
+mainFrame.Position = UDim2.new(0, 10, 0, 50)
+mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 mainFrame.Parent = gui
 mainFrame.Active = true
 mainFrame.Draggable = true
@@ -413,6 +337,14 @@ buildStatus.TextColor3 = Color3.new(1, 1, 1)
 buildStatus.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
 buildStatus.Parent = buildPanel
 
+easterBuildBtn.MouseButton1Click:Connect(function()
+    task.spawn(executeEasterBuild)
+end)
+
+megaBuildBtn.MouseButton1Click:Connect(function()
+    task.spawn(executeMegaBuild)
+end)
+
 --// BUY TAB
 local buyPanel = panels.buy
 
@@ -427,6 +359,7 @@ local itemsScroll = Instance.new("ScrollingFrame")
 itemsScroll.Size = UDim2.new(1, -20, 0, 280)
 itemsScroll.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 itemsScroll.Parent = buyPanel
+
 local itemsLayout = Instance.new("UIListLayout", itemsScroll)
 
 local selectedItems = {}
@@ -476,8 +409,11 @@ local function autoBuyLoop()
             for item,_ in pairs(selectedItems) do
                 if not autoBuyActive then break end
                 pcall(function()
-                    if items[item]=="E" then eBuyDefense:InvokeServer(item,1)
-                    else buyDefense:InvokeServer(item,1) end
+                    if items[item]=="E" then
+                        eBuyDefense:InvokeServer(item,1)
+                    else
+                        buyDefense:InvokeServer(item,1)
+                    end
                 end)
                 task.wait(1)
             end
@@ -493,7 +429,7 @@ autoBuyToggle.MouseButton1Click:Connect(function()
     if autoBuyActive then autoBuyLoop() end
 end)
 
---// CHALLENGE TAB
+--// CHALLENGE TAB (SIMPLE VERSION)
 local challengePanel = panels.challenge
 
 local challengeStatus = Instance.new("TextLabel")
@@ -503,48 +439,13 @@ challengeStatus.TextColor3 = Color3.new(1, 1, 1)
 challengeStatus.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
 challengeStatus.Parent = challengePanel
 
-local countdownDisplay = Instance.new("TextLabel")
-countdownDisplay.Size = UDim2.new(1, -20, 0, 40)
-countdownDisplay.Text = "Next: --:--"
-countdownDisplay.TextColor3 = Color3.new(1, 0.8, 0)
-countdownDisplay.TextSize = 18
-countdownDisplay.Font = Enum.Font.GothamBold
-countdownDisplay.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-countdownDisplay.Parent = challengePanel
-
-local listHeader = Instance.new("TextLabel")
-listHeader.Size = UDim2.new(1, -20, 0, 25)
-listHeader.Text = "📋 CHALLENGE QUEUE (Tap to enable, arrows to reorder)"
-listHeader.TextColor3 = Color3.new(1, 1, 0)
-listHeader.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
-listHeader.Parent = challengePanel
-
 local queueDisplay = Instance.new("TextLabel")
-queueDisplay.Size = UDim2.new(1, -20, 0, 120)
+queueDisplay.Size = UDim2.new(1, -20, 0, 100)
 queueDisplay.Text = "No challenges enabled"
 queueDisplay.TextColor3 = Color3.new(0.7, 0.7, 0.7)
 queueDisplay.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 queueDisplay.TextWrapped = true
-queueDisplay.TextXAlignment = Enum.TextXAlignment.Left
 queueDisplay.Parent = challengePanel
-
-local function updateQueueDisplay()
-    local text = ""
-    for i, ch in ipairs(challengeOrder) do
-        if ch.enabled then
-            local cd = getChallengeCooldown(ch.name)
-            if cd == 0 then text = text .. string.format("%d. %s ✅ READY\n", i, ch.name)
-            else
-                local mins = math.floor(cd / 60)
-                local secs = cd % 60
-                text = text .. string.format("%d. %s ⏰ %02d:%02d\n", i, ch.name, mins, secs)
-            end
-        else
-            text = text .. string.format("%d. %s ❌ OFF\n", i, ch.name)
-        end
-    end
-    queueDisplay.Text = text ~= "" and text or "No challenges enabled"
-end
 
 local challengeListFrame = Instance.new("ScrollingFrame")
 challengeListFrame.Size = UDim2.new(1, -20, 0, 180)
@@ -553,115 +454,102 @@ challengeListFrame.Parent = challengePanel
 local challengeListLayout = Instance.new("UIListLayout", challengeListFrame)
 challengeListLayout.Padding = UDim.new(0, 4)
 
+local simpleChallengeItems = {}
+
 for i, ch in ipairs(allChallenges) do
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(1, -10, 0, 45)
+    frame.Size = UDim2.new(1, -10, 0, 35)
     frame.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
     frame.Parent = challengeListFrame
     
     local toggleBtn = Instance.new("TextButton")
-    toggleBtn.Size = UDim2.new(0.4, -5, 0.8, 0)
-    toggleBtn.Position = UDim2.new(0, 5, 0.1, 0)
+    toggleBtn.Size = UDim2.new(1, -5, 1, -5)
     toggleBtn.Text = "❌ " .. ch.name
     toggleBtn.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
     toggleBtn.TextColor3 = Color3.new(1, 1, 1)
     toggleBtn.TextXAlignment = Enum.TextXAlignment.Left
-    toggleBtn.TextSize = 12
     toggleBtn.Parent = frame
     
-    local upBtn = Instance.new("TextButton")
-    upBtn.Size = UDim2.new(0.1, -5, 0.7, 0)
-    upBtn.Position = UDim2.new(0.68, 0, 0.15, 0)
-    upBtn.Text = "⬆️"
-    upBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
-    upBtn.TextColor3 = Color3.new(1, 1, 1)
-    upBtn.Parent = frame
-    
-    local downBtn = Instance.new("TextButton")
-    downBtn.Size = UDim2.new(0.1, -5, 0.7, 0)
-    downBtn.Position = UDim2.new(0.8, 0, 0.15, 0)
-    downBtn.Text = "⬇️"
-    downBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
-    downBtn.TextColor3 = Color3.new(1, 1, 1)
-    downBtn.Parent = frame
-    
-    challengeItems[i] = {toggleBtn=toggleBtn, name=ch.name, id=ch.id, enabled=false}
+    simpleChallengeItems[i] = {toggleBtn=toggleBtn, name=ch.name, id=ch.id, enabled=false}
     
     toggleBtn.MouseButton1Click:Connect(function()
-        challengeItems[i].enabled = not challengeItems[i].enabled
-        if challengeItems[i].enabled then
+        simpleChallengeItems[i].enabled = not simpleChallengeItems[i].enabled
+        if simpleChallengeItems[i].enabled then
             toggleBtn.Text = "✅ " .. ch.name
             toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 100, 50)
         else
             toggleBtn.Text = "❌ " .. ch.name
             toggleBtn.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
         end
-        refreshChallengeOrder()
-    end)
-    
-    upBtn.MouseButton1Click:Connect(function()
-        if i > 1 then
-            challengeItems[i], challengeItems[i-1] = challengeItems[i-1], challengeItems[i]
-            refreshChallengeOrder()
-        end
-    end)
-    
-    downBtn.MouseButton1Click:Connect(function()
-        if i < #allChallenges then
-            challengeItems[i], challengeItems[i+1] = challengeItems[i+1], challengeItems[i]
-            refreshChallengeOrder()
-        end
+        updateQueueDisplay()
     end)
 end
 
-local function refreshChallengeOrder()
-    challengeOrder = {}
-    for i, item in ipairs(challengeItems) do
-        challengeOrder[i] = {name=item.name, id=item.id, enabled=item.enabled}
+local function updateQueueDisplay()
+    local text = ""
+    for i, item in ipairs(simpleChallengeItems) do
+        if item.enabled then
+            text = text .. string.format("%d. %s ✅\n", i, item.name)
+        else
+            text = text .. string.format("%d. %s ❌\n", i, item.name)
+        end
     end
-    updateQueueDisplay()
+    queueDisplay.Text = text ~= "" and text or "No challenges enabled"
 end
 
-local autoChallengeToggle = Instance.new("TextButton")
-autoChallengeToggle.Size = UDim2.new(1, -20, 0, 50)
-autoChallengeToggle.Text = "🎯 AUTO CHALLENGE: OFF"
-autoChallengeToggle.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
-autoChallengeToggle.TextColor3 = Color3.new(1, 1, 1)
-autoChallengeToggle.Font = Enum.Font.GothamBold
-autoChallengeToggle.Parent = challengePanel
+local function runAutoChallenge()
+    autoChallengeActive = true
+    autoChallengeThread = task.spawn(function()
+        while autoChallengeActive do
+            for _, ch in ipairs(simpleChallengeItems) do
+                if ch.enabled then
+                    challengeStatus.Text = "Starting: " .. ch.name
+                    pcall(function()
+                        raidStop:FireServer()
+                        task.wait(0.5)
+                        startChallenge:InvokeServer(ch.id)
+                        task.wait(0.5)
+                        changeSetting:InvokeServer("AutoRaid", "On")
+                    end)
+                    challengeStatus.Text = "Running: " .. ch.name
+                    task.wait(300)
+                    challengeStatus.Text = "Complete: " .. ch.name
+                    task.wait(2)
+                end
+            end
+            challengeStatus.Text = "All done, looping..."
+            task.wait(5)
+        end
+    end)
+end
 
-autoChallengeToggle.MouseButton1Click:Connect(function()
+local function stopAutoChallenge()
+    autoChallengeActive = false
+    if autoChallengeThread then task.cancel(autoChallengeThread) end
+    challengeStatus.Text = "Stopped"
+end
+
+local autoChallengeBtn = Instance.new("TextButton")
+autoChallengeBtn.Size = UDim2.new(1, -20, 0, 50)
+autoChallengeBtn.Text = "🎯 AUTO CHALLENGE: OFF"
+autoChallengeBtn.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
+autoChallengeBtn.TextColor3 = Color3.new(1, 1, 1)
+autoChallengeBtn.Font = Enum.Font.GothamBold
+autoChallengeBtn.Parent = challengePanel
+
+autoChallengeBtn.MouseButton1Click:Connect(function()
     if autoChallengeActive then
         stopAutoChallenge()
-        autoChallengeToggle.Text = "🎯 AUTO CHALLENGE: OFF"
-        autoChallengeToggle.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
-        challengeStatus.Text = "Status: Stopped"
-        countdownDisplay.Text = "---"
+        autoChallengeBtn.Text = "🎯 AUTO CHALLENGE: OFF"
+        autoChallengeBtn.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
     else
-        refreshChallengeOrder()
         runAutoChallenge()
-        autoChallengeToggle.Text = "🎯 AUTO CHALLENGE: ON"
-        autoChallengeToggle.BackgroundColor3 = Color3.fromRGB(50, 100, 50)
-        challengeStatus.Text = "Status: ACTIVE"
+        autoChallengeBtn.Text = "🎯 AUTO CHALLENGE: ON"
+        autoChallengeBtn.BackgroundColor3 = Color3.fromRGB(50, 100, 50)
     end
 end)
 
-local refreshBtn = Instance.new("TextButton")
-refreshBtn.Size = UDim2.new(0.48, -5, 0, 35)
-refreshBtn.Text = "🔄 REFRESH STATUS"
-refreshBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
-refreshBtn.TextColor3 = Color3.new(1, 1, 1)
-refreshBtn.Parent = challengePanel
-
-refreshBtn.MouseButton1Click:Connect(function()
-    updateQueueDisplay()
-    challengeStatus.Text = "🔄 Refreshed!"
-    task.wait(1)
-    if autoChallengeActive then challengeStatus.Text = "Status: ACTIVE"
-    else challengeStatus.Text = "Status: IDLE" end
-end)
-
-refreshChallengeOrder()
+updateQueueDisplay()
 
 --// SCHEDULE TAB
 local schedulePanel = panels.schedule
@@ -688,55 +576,6 @@ megaScheduleToggle.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
 megaScheduleToggle.TextColor3 = Color3.new(1, 1, 1)
 megaScheduleToggle.Parent = schedulePanel
 
--- Anti-AFK Section
-local antiAFKCard = Instance.new("Frame")
-antiAFKCard.Size = UDim2.new(1, -20, 0, 80)
-antiAFKCard.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
-antiAFKCard.Parent = schedulePanel
-
-local antiAFKTitle = Instance.new("TextLabel")
-antiAFKTitle.Size = UDim2.new(0.95, 0, 0, 25)
-antiAFKTitle.Position = UDim2.new(0.025, 0, 0, 5)
-antiAFKTitle.Text = "🔄 ANTI-AFK SYSTEM"
-antiAFKTitle.TextColor3 = Color3.new(0.5, 0.8, 1)
-antiAFKTitle.BackgroundColor3 = Color3.fromRGB(20, 20, 35)
-antiAFKTitle.Parent = antiAFKCard
-
-local antiAFKToggle = Instance.new("TextButton")
-antiAFKToggle.Size = UDim2.new(0.95, 0, 0, 40)
-antiAFKToggle.Position = UDim2.new(0.025, 0, 0, 32)
-antiAFKToggle.Text = "🔄 ANTI-AFK: OFF"
-antiAFKToggle.TextSize = 14
-antiAFKToggle.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
-antiAFKToggle.TextColor3 = Color3.new(1, 1, 1)
-antiAFKToggle.Parent = antiAFKCard
-
-local antiAFKStatus = Instance.new("TextLabel")
-antiAFKStatus.Size = UDim2.new(0.95, 0, 0, 20)
-antiAFKStatus.Position = UDim2.new(0.025, 0, 0, 75)
-antiAFKStatus.Text = "Status: Inactive"
-antiAFKStatus.TextColor3 = Color3.new(0.7, 0.7, 0.7)
-antiAFKStatus.TextSize = 11
-antiAFKStatus.BackgroundTransparency = 1
-antiAFKStatus.Parent = antiAFKCard
-
-antiAFKToggle.MouseButton1Click:Connect(function()
-    if antiAFKActive then
-        stopAntiAFK()
-        antiAFKToggle.Text = "🔄 ANTI-AFK: OFF"
-        antiAFKToggle.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
-        antiAFKStatus.Text = "Status: Inactive"
-        antiAFKStatus.TextColor3 = Color3.new(0.7, 0.7, 0.7)
-    else
-        startAntiAFK()
-        antiAFKToggle.Text = "🔄 ANTI-AFK: ON"
-        antiAFKToggle.BackgroundColor3 = Color3.fromRGB(50, 100, 50)
-        antiAFKStatus.Text = "Status: Active - Preventing AFK"
-        antiAFKStatus.TextColor3 = Color3.new(0.3, 1, 0.3)
-    end
-end)
-
--- Schedule Logic
 local easterSched = false
 local megaSched = false
 local lastCheck = -1
@@ -859,7 +698,7 @@ local function autoSaveConfig()
         autoBuyEnabled = autoBuyActive,
         autoChallengeEnabled = autoChallengeActive
     }
-    for _, item in ipairs(challengeItems) do
+    for i, item in ipairs(simpleChallengeItems) do
         table.insert(config.challengeOrder, {name=item.name, id=item.id, enabled=item.enabled})
     end
     for item,_ in pairs(selectedItems) do table.insert(config.selectedItems, item) end
@@ -890,18 +729,18 @@ local function applyConfig()
     if not savedConfig then return false end
     if savedConfig.challengeOrder then
         for i, savedCh in ipairs(savedConfig.challengeOrder) do
-            if challengeItems[i] then
-                challengeItems[i].enabled = savedCh.enabled
+            if simpleChallengeItems[i] then
+                simpleChallengeItems[i].enabled = savedCh.enabled
                 if savedCh.enabled then
-                    challengeItems[i].toggleBtn.Text = "✅ " .. challengeItems[i].name
-                    challengeItems[i].toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 100, 50)
+                    simpleChallengeItems[i].toggleBtn.Text = "✅ " .. simpleChallengeItems[i].name
+                    simpleChallengeItems[i].toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 100, 50)
                 else
-                    challengeItems[i].toggleBtn.Text = "❌ " .. challengeItems[i].name
-                    challengeItems[i].toggleBtn.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
+                    simpleChallengeItems[i].toggleBtn.Text = "❌ " .. simpleChallengeItems[i].name
+                    simpleChallengeItems[i].toggleBtn.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
                 end
             end
         end
-        refreshChallengeOrder()
+        updateQueueDisplay()
     end
     if savedConfig.selectedItems then
         for _, itemName in ipairs(savedConfig.selectedItems) do
@@ -921,20 +760,20 @@ local function applyConfig()
     end
     if savedConfig.autoChallengeEnabled then
         autoChallengeActive = savedConfig.autoChallengeEnabled
-        autoChallengeToggle.Text = autoChallengeActive and "🎯 AUTO CHALLENGE: ON" or "🎯 AUTO CHALLENGE: OFF"
-        autoChallengeToggle.BackgroundColor3 = autoChallengeActive and Color3.fromRGB(50, 100, 50) or Color3.fromRGB(70, 50, 50)
+        autoChallengeBtn.Text = autoChallengeActive and "🎯 AUTO CHALLENGE: ON" or "🎯 AUTO CHALLENGE: OFF"
+        autoChallengeBtn.BackgroundColor3 = autoChallengeActive and Color3.fromRGB(50, 100, 50) or Color3.fromRGB(70, 50, 50)
         if autoChallengeActive then runAutoChallenge() end
     end
     return true
 end
 
 local function resetToDefault()
-    for i, item in ipairs(challengeItems) do
+    for i, item in ipairs(simpleChallengeItems) do
         item.enabled = false
         item.toggleBtn.Text = "❌ " .. item.name
         item.toggleBtn.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
     end
-    refreshChallengeOrder()
+    updateQueueDisplay()
     for name, btn in pairs(itemButtons) do
         btn.Text = btn.Text:gsub("%[X%]","[ ]")
         btn.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
@@ -945,8 +784,8 @@ local function resetToDefault()
     autoBuyToggle.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
     if autoChallengeActive then
         stopAutoChallenge()
-        autoChallengeToggle.Text = "🎯 AUTO CHALLENGE: OFF"
-        autoChallengeToggle.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
+        autoChallengeBtn.Text = "🎯 AUTO CHALLENGE: OFF"
+        autoChallengeBtn.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
     end
     autoSaveConfig()
     saveStatus.Text = "✅ Reset to default!"
@@ -972,7 +811,7 @@ exportBtn.MouseButton1Click:Connect(function()
         autoBuyEnabled = autoBuyActive,
         autoChallengeEnabled = autoChallengeActive
     }
-    for _, item in ipairs(challengeItems) do
+    for i, item in ipairs(simpleChallengeItems) do
         table.insert(config.challengeOrder, {name=item.name, id=item.id, enabled=item.enabled})
     end
     for item,_ in pairs(selectedItems) do table.insert(config.selectedItems, item) end
@@ -1028,17 +867,13 @@ panels.build.Visible = true
 tabs.build.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
 
 if autoLoadConfig() then applyConfig() end
-refreshChallengeOrder()
-
---// BUTTON CONNECTIONS
-easterBuildBtn.MouseButton1Click:Connect(function() task.spawn(executeEasterBuild) end)
-megaBuildBtn.MouseButton1Click:Connect(function() task.spawn(executeMegaBuild) end)
+updateQueueDisplay()
 
 print("=== TD AUTO FARM LOADED ===")
-print("✅ BUILD - Easter & Mega Raid (Direct remote calls - FIXED)")
+print("✅ BUILD - Easter & Mega Raid (Fixed positions with Railgun)")
 print("✅ BUY - Auto buy towers every 1 second")
-print("✅ CHALLENGE - Smart auto-challenge with raid fallback")
-print("✅ SCHEDULE - Easter (:15/:45), Mega (:00), Anti-AFK")
+print("✅ CHALLENGE - Auto challenge with queue")
+print("✅ SCHEDULE - Easter (:15/:45), Mega (:00)")
 print("✅ CONFIG - Auto-save/load settings")
 
 end)
