@@ -700,7 +700,7 @@ local schedulePanel = panels.schedule
 
 local scheduleStatus = Instance.new("TextLabel")
 scheduleStatus.Size = UDim2.new(1, -20, 0, 60)
-scheduleStatus.Text = "Schedule Status: IDLE\n⚔️ Mega Raid (:00): OFF\n🚣 Raft Raid (:15): OFF"
+scheduleStatus.Text = "Schedule Status: IDLE\n⚔️ Mega Raid (:00): OFF\n🚣 Raft Raid (:15 & :45): OFF"
 scheduleStatus.TextColor3 = Color3.new(1, 1, 1)
 scheduleStatus.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
 scheduleStatus.TextWrapped = true
@@ -715,7 +715,7 @@ megaScheduleToggle.Parent = schedulePanel
 
 local raftScheduleToggle = Instance.new("TextButton")
 raftScheduleToggle.Size = UDim2.new(1, -20, 0, 45)
-raftScheduleToggle.Text = "🚣 RAFT RAID SCHEDULE (:15): OFF"
+raftScheduleToggle.Text = "🚣 RAFT RAID SCHEDULE (:15 & :45): OFF"
 raftScheduleToggle.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
 raftScheduleToggle.TextColor3 = Color3.new(1, 1, 1)
 raftScheduleToggle.Parent = schedulePanel
@@ -768,11 +768,10 @@ antiAFKToggle.MouseButton1Click:Connect(function()
     end
 end)
 
--- Schedule Logic with rapid retry for RaftRaid
+-- Schedule Logic with rapid retry for RaftRaid (now at :15 and :45)
 local megaSched = false
 local raftSched = false
 local lastCheck = -1
-local lastRaftTrigger = 0
 
 local function runScheduler()
     task.spawn(function()
@@ -790,9 +789,10 @@ local function runScheduler()
                     task.spawn(executeMegaBuild)
                 end
                 
-                -- Raft Raid at :15 with rapid retry for 10 seconds
-                if raftSched and min == 15 then
-                    scheduleStatus.Text = "Schedule: Running Raft Raid (rapid retry for 10s)..."
+                -- Raft Raid at :15 and :45 with rapid retry for 10 seconds
+                if raftSched and (min == 15 or min == 45) then
+                    local timeLabel = (min == 15) and ":15" or ":45"
+                    scheduleStatus.Text = string.format("Schedule: Running Raft Raid (%s) - rapid retry for 10s...", timeLabel)
                     local startTime = tick()
                     while tick() - startTime < 10 do
                         task.spawn(executeRaftBuild)
@@ -804,7 +804,7 @@ local function runScheduler()
                 -- Update status display
                 local statusText = "Schedule Status: ACTIVE\n"
                 statusText = statusText .. "⚔️ " .. (megaSched and "Next Mega: :00" or "Mega: OFF") .. "\n"
-                statusText = statusText .. "🚣 " .. (raftSched and "Next Raft: :15" or "Raft: OFF")
+                statusText = statusText .. "🚣 " .. (raftSched and "Next Raft: :15 & :45" or "Raft: OFF")
                 scheduleStatus.Text = statusText
             end
             task.wait(1)
@@ -820,7 +820,7 @@ end)
 
 raftScheduleToggle.MouseButton1Click:Connect(function()
     raftSched = not raftSched
-    raftScheduleToggle.Text = raftSched and "🚣 RAFT RAID SCHEDULE (:15): ✅ ON" or "🚣 RAFT RAID SCHEDULE (:15): ❌ OFF"
+    raftScheduleToggle.Text = raftSched and "🚣 RAFT RAID SCHEDULE (:15 & :45): ✅ ON" or "🚣 RAFT RAID SCHEDULE (:15 & :45): ❌ OFF"
     raftScheduleToggle.BackgroundColor3 = raftSched and Color3.fromRGB(50, 100, 50) or Color3.fromRGB(70, 50, 50)
 end)
 
@@ -1077,7 +1077,7 @@ print("=== TD AUTO FARM LOADED ===")
 print("✅ BUILD - Mega Raid & Raft Raid (Fixed positions)")
 print("✅ BUY - Auto buy towers every 1 second")
 print("✅ CHALLENGE - Smart auto-challenge with cooldown detection")
-print("✅ SCHEDULE - Mega (:00), Raft (:15 with 10s rapid retry), Anti-AFK")
+print("✅ SCHEDULE - Mega (:00), Raft (:15 & :45 with 10s rapid retry), Anti-AFK")
 print("✅ CONFIG - Auto-save/load settings")
 
 end)
