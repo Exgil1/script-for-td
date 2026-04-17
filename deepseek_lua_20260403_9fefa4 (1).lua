@@ -24,8 +24,8 @@ local buyDefense = functionsFolder:WaitForChild("BuyDefense")
 local eBuyDefense = functionsFolder:WaitForChild("EBuyDefense")
 local startChallenge = functionsFolder:WaitForChild("StartChallenge")
 local changeSetting = functionsFolder:WaitForChild("ChangeSetting")
-local joinEventRaid = remotesFolder:WaitForChild("JoinEventRaid")
 local joinCommunityRaid = remotesFolder:WaitForChild("JoinCommunityRaid")
+local joinRaftRaid = remotesFolder:WaitForChild("JoinRaftRaid")
 local raidStop = remotesFolder:WaitForChild("RaidStop")
 
 --// PLAYER DATA FOR CHALLENGE COOLDOWN
@@ -39,18 +39,9 @@ local challengeDurations = {
     ["Insane Challenge"] = 22 * 60,
     ["Pro Challenge"] = 20 * 60,
     ["Godly Challenge"] = 20 * 60,
-    ["Easter Challenge #1"] = 15 * 60,
-    ["Easter Challenge #2"] = 15 * 60,
 }
 
---// BUILD STRUCTURES (USING VECTOR.CREATE)
-local easterBuildStructures = {
-    {id = "Wall{d0bfa0d3-11c2-4606-b175-ecd58b9878f0}", pos = vector.create(525.6004638671875, 227.50601196289062, 1187.6143798828125), rot = 90},
-    {id = "Flamespitter{5c2cf563-40ae-4c75-9881-9e97f9b8cd66}", pos = vector.create(527.6004638671875, 227.50601196289062, 1193.6143798828125), rot = 90},
-    {id = "Railgun{cba7bbf3-aaab-4cde-92df-67ac6c4ebda0}", pos = vector.create(535.6004638671875, 227.50601196289062, 1209.6143798828125), rot = 90},
-    {id = "Inferno Beam{538ce489-08e2-4a0e-9a7b-24792793dbb6}", pos = vector.create(535.6004638671875, 227.50601196289062, 1199.6143798828125), rot = 90}
-}
-
+--// BUILD STRUCTURES
 local megaRaidBuildStructures = {
     {id = "Wall{d0bfa0d3-11c2-4606-b175-ecd58b9878f0}", pos = vector.create(1529.6004638671875, 8.505999565124512, 1189.6143798828125), rot = 90},
     {id = "Flamespitter{5c2cf563-40ae-4c75-9881-9e97f9b8cd66}", pos = vector.create(1523.6004638671875, 8.505999565124512, 1197.6143798828125), rot = 90},
@@ -60,8 +51,6 @@ local megaRaidBuildStructures = {
 
 --// ITEMS FOR AUTO BUY
 local items = {
-    ["Bunny Cannon"]="E",["Bunny Bow"]="E",["Egg Launcher"]="E",
-    ["Bunny Bomb Tower"]="E",["Egg Beam"]="E",
     ["Railgun"]="N",["Mega Cannon"]="N",["Triple Mortar"]="N",
     ["Flamespitter"]="N",["Rocket Artillery"]="N",["Bomb Tower"]="N",
     ["The Shocker"]="N",["The Crusher"]="N",["Volcanic Artillery"]="N",
@@ -77,8 +66,6 @@ local items = {
 local allChallenges = {
     {name = "Insane Challenge", id = "Insane Challenge"},
     {name = "Pro Challenge", id = "Pro Challenge"},
-    {name = "Easter Challenge #1", id = "Easter Challenge #1"},
-    {name = "Easter Challenge #2", id = "Easter Challenge #2"},
     {name = "Godly Challenge", id = "Godly Challenge"}
 }
 
@@ -120,7 +107,7 @@ local function isChallengeAvailable(name) return getChallengeCooldown(name) == 0
 local function isInChallenge() return challengeActiveFlag and challengeActiveFlag.Value == true end
 local function isInRaid() return raidingFlag and raidingFlag.Value == true end
 
---// RAID CONTROL (flipped logic)
+--// RAID CONTROL
 local function startNormalRaid()
     if not normalRaidActive then
         pcall(function() changeSetting:InvokeServer("AutoRaid", "Off") end)
@@ -272,45 +259,7 @@ local function stopAutoChallenge()
     if countdownDisplay then countdownDisplay.Text = "---" end
 end
 
---// BUILD FUNCTIONS (EXACT MATCH TO YOUR WORKING CODE)
-local function executeEasterBuild()
-    print("[Easter] Starting build...")
-    pcall(function() joinEventRaid:FireServer() end)
-    task.wait(1)
-    
-    local args1 = {
-        "Wall{d0bfa0d3-11c2-4606-b175-ecd58b9878f0}",
-        {Rotation = 90, Position = vector.create(525.6004638671875, 227.50601196289062, 1187.6143798828125)}
-    }
-    game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("EBuildDefense"):InvokeServer(unpack(args1))
-    task.wait(0.5)
-    
-    local args2 = {
-        "Flamespitter{5c2cf563-40ae-4c75-9881-9e97f9b8cd66}",
-        {Rotation = 90, Position = vector.create(527.6004638671875, 227.50601196289062, 1193.6143798828125)}
-    }
-    game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("EBuildDefense"):InvokeServer(unpack(args2))
-    task.wait(0.5)
-    
-    local args3 = {
-        "Railgun{cba7bbf3-aaab-4cde-92df-67ac6c4ebda0}",
-        {Rotation = 90, Position = vector.create(535.6004638671875, 227.50601196289062, 1209.6143798828125)}
-    }
-    game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("EBuildDefense"):InvokeServer(unpack(args3))
-    task.wait(0.5)
-    
-    local args4 = {
-        "Inferno Beam{538ce489-08e2-4a0e-9a7b-24792793dbb6}",
-        {Rotation = 90, Position = vector.create(535.6004638671875, 227.50601196289062, 1199.6143798828125)}
-    }
-    game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("EBuildDefense"):InvokeServer(unpack(args4))
-    
-    if buildStatus then buildStatus.Text = "✅ Easter complete!" end
-    print("[Easter] Complete!")
-    task.wait(2)
-    if buildStatus then buildStatus.Text = "Status: Ready" end
-end
-
+--// BUILD FUNCTIONS
 local function executeMegaBuild()
     print("[Mega] Starting build...")
     pcall(function() joinCommunityRaid:FireServer() end)
@@ -345,6 +294,48 @@ local function executeMegaBuild()
     
     if buildStatus then buildStatus.Text = "✅ Mega complete!" end
     print("[Mega] Complete!")
+    task.wait(2)
+    if buildStatus then buildStatus.Text = "Status: Ready" end
+end
+
+local function executeRaftBuild()
+    print("[RaftRaid] Starting build...")
+    pcall(function() joinRaftRaid:FireServer() end)
+    task.wait(1)
+    
+    -- The Crusher
+    local args1 = {
+        "The Crusher{4cd8f70d-c6aa-4999-a139-8248bcee646a}",
+        {Rotation = 90, Position = vector.create(1525.5994873046875, 6.705000400543213, -1647.33642578125)}
+    }
+    game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("RBuildDefense"):InvokeServer(unpack(args1))
+    task.wait(0.5)
+    
+    -- Flamespitter
+    local args2 = {
+        "Flamespitter{5c2cf563-40ae-4c75-9881-9e97f9b8cd66}",
+        {Rotation = 90, Position = vector.create(1523.5994873046875, 6.705000400543213, -1637.33642578125)}
+    }
+    game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("RBuildDefense"):InvokeServer(unpack(args2))
+    task.wait(0.5)
+    
+    -- Inferno Beam
+    local args3 = {
+        "Inferno Beam{538ce489-08e2-4a0e-9a7b-24792793dbb6}",
+        {Rotation = 90, Position = vector.create(1523.5994873046875, 6.705000400543213, -1629.33642578125)}
+    }
+    game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("RBuildDefense"):InvokeServer(unpack(args3))
+    task.wait(0.5)
+    
+    -- Railgun
+    local args4 = {
+        "Railgun{cba7bbf3-aaab-4cde-92df-67ac6c4ebda0}",
+        {Rotation = 90, Position = vector.create(1525.5994873046875, 6.705000400543213, -1619.33642578125)}
+    }
+    game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("RBuildDefense"):InvokeServer(unpack(args4))
+    
+    if buildStatus then buildStatus.Text = "✅ RaftRaid complete!" end
+    print("[RaftRaid] Complete!")
     task.wait(2)
     if buildStatus then buildStatus.Text = "Status: Ready" end
 end
@@ -449,14 +440,6 @@ end
 --// BUILD TAB
 local buildPanel = panels.build
 
-local easterBuildBtn = Instance.new("TextButton")
-easterBuildBtn.Size = UDim2.new(1, -20, 0, 50)
-easterBuildBtn.Text = "🐰 BUILD EASTER (4 Towers)"
-easterBuildBtn.BackgroundColor3 = Color3.fromRGB(70, 50, 100)
-easterBuildBtn.TextColor3 = Color3.new(1, 1, 1)
-easterBuildBtn.Font = Enum.Font.GothamBold
-easterBuildBtn.Parent = buildPanel
-
 local megaBuildBtn = Instance.new("TextButton")
 megaBuildBtn.Size = UDim2.new(1, -20, 0, 50)
 megaBuildBtn.Text = "⚔️ BUILD MEGA RAID (4 Towers)"
@@ -465,6 +448,14 @@ megaBuildBtn.TextColor3 = Color3.new(1, 1, 1)
 megaBuildBtn.Font = Enum.Font.GothamBold
 megaBuildBtn.Parent = buildPanel
 
+local raftBuildBtn = Instance.new("TextButton")
+raftBuildBtn.Size = UDim2.new(1, -20, 0, 50)
+raftBuildBtn.Text = "🚣 BUILD RAFT RAID (4 Towers)"
+raftBuildBtn.BackgroundColor3 = Color3.fromRGB(70, 50, 100)
+raftBuildBtn.TextColor3 = Color3.new(1, 1, 1)
+raftBuildBtn.Font = Enum.Font.GothamBold
+raftBuildBtn.Parent = buildPanel
+
 local buildStatus = Instance.new("TextLabel")
 buildStatus.Size = UDim2.new(1, -20, 0, 40)
 buildStatus.Text = "Status: Ready"
@@ -472,8 +463,8 @@ buildStatus.TextColor3 = Color3.new(1, 1, 1)
 buildStatus.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
 buildStatus.Parent = buildPanel
 
-easterBuildBtn.MouseButton1Click:Connect(function() task.spawn(executeEasterBuild) end)
 megaBuildBtn.MouseButton1Click:Connect(function() task.spawn(executeMegaBuild) end)
+raftBuildBtn.MouseButton1Click:Connect(function() task.spawn(executeRaftBuild) end)
 
 --// BUY TAB
 local buyPanel = panels.buy
@@ -709,18 +700,11 @@ local schedulePanel = panels.schedule
 
 local scheduleStatus = Instance.new("TextLabel")
 scheduleStatus.Size = UDim2.new(1, -20, 0, 60)
-scheduleStatus.Text = "Schedule Status: IDLE\n🐰 Easter (:15 & :45): OFF\n⚔️ Mega Raid (:00): OFF"
+scheduleStatus.Text = "Schedule Status: IDLE\n⚔️ Mega Raid (:00): OFF\n🚣 Raft Raid (:15): OFF"
 scheduleStatus.TextColor3 = Color3.new(1, 1, 1)
 scheduleStatus.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
 scheduleStatus.TextWrapped = true
 scheduleStatus.Parent = schedulePanel
-
-local easterScheduleToggle = Instance.new("TextButton")
-easterScheduleToggle.Size = UDim2.new(1, -20, 0, 45)
-easterScheduleToggle.Text = "🐰 EASTER SCHEDULE (:15 & :45): OFF"
-easterScheduleToggle.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
-easterScheduleToggle.TextColor3 = Color3.new(1, 1, 1)
-easterScheduleToggle.Parent = schedulePanel
 
 local megaScheduleToggle = Instance.new("TextButton")
 megaScheduleToggle.Size = UDim2.new(1, -20, 0, 45)
@@ -728,6 +712,13 @@ megaScheduleToggle.Text = "⚔️ MEGA RAID SCHEDULE (:00): OFF"
 megaScheduleToggle.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
 megaScheduleToggle.TextColor3 = Color3.new(1, 1, 1)
 megaScheduleToggle.Parent = schedulePanel
+
+local raftScheduleToggle = Instance.new("TextButton")
+raftScheduleToggle.Size = UDim2.new(1, -20, 0, 45)
+raftScheduleToggle.Text = "🚣 RAFT RAID SCHEDULE (:15): OFF"
+raftScheduleToggle.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
+raftScheduleToggle.TextColor3 = Color3.new(1, 1, 1)
+raftScheduleToggle.Parent = schedulePanel
 
 --// ANTI-AFK SECTION
 local antiAFKCard = Instance.new("Frame")
@@ -777,49 +768,60 @@ antiAFKToggle.MouseButton1Click:Connect(function()
     end
 end)
 
--- Schedule Logic
-local easterSched = false
+-- Schedule Logic with rapid retry for RaftRaid
 local megaSched = false
+local raftSched = false
 local lastCheck = -1
+local lastRaftTrigger = 0
 
 local function runScheduler()
     task.spawn(function()
         while true do
             local now = os.date("*t")
             local min = now.min
+            local currentTime = os.time()
+            
             if min ~= lastCheck then
                 lastCheck = min
-                if easterSched and (min == 15 or min == 45) then
-                    scheduleStatus.Text = "Schedule: Running Easter..."
-                    task.spawn(executeEasterBuild)
-                end
+                
+                -- Mega Raid at :00
                 if megaSched and min == 0 then
                     scheduleStatus.Text = "Schedule: Running Mega Raid..."
                     task.spawn(executeMegaBuild)
                 end
-                local nextInfo = ""
-                if easterSched then
-                    if min < 15 then nextInfo = "Next Easter: :15"
-                    elseif min < 45 then nextInfo = "Next Easter: :45"
-                    else nextInfo = "Next Easter: :15 (next hour)" end
+                
+                -- Raft Raid at :15 with rapid retry for 10 seconds
+                if raftSched and min == 15 then
+                    scheduleStatus.Text = "Schedule: Running Raft Raid (rapid retry for 10s)..."
+                    local startTime = tick()
+                    while tick() - startTime < 10 do
+                        task.spawn(executeRaftBuild)
+                        task.wait(1)
+                    end
+                    scheduleStatus.Text = "Schedule: Raft Raid cycle complete"
                 end
-                scheduleStatus.Text = "Schedule Status: ACTIVE\n🐰 " .. (easterSched and nextInfo or "Easter: OFF") .. "\n⚔️ " .. (megaSched and "Next Mega: :00" or "Mega: OFF")
+                
+                -- Update status display
+                local statusText = "Schedule Status: ACTIVE\n"
+                statusText = statusText .. "⚔️ " .. (megaSched and "Next Mega: :00" or "Mega: OFF") .. "\n"
+                statusText = statusText .. "🚣 " .. (raftSched and "Next Raft: :15" or "Raft: OFF")
+                scheduleStatus.Text = statusText
             end
             task.wait(1)
         end
     end)
 end
 
-easterScheduleToggle.MouseButton1Click:Connect(function()
-    easterSched = not easterSched
-    easterScheduleToggle.Text = easterSched and "🐰 EASTER SCHEDULE (:15 & :45): ✅ ON" or "🐰 EASTER SCHEDULE (:15 & :45): ❌ OFF"
-    easterScheduleToggle.BackgroundColor3 = easterSched and Color3.fromRGB(50, 100, 50) or Color3.fromRGB(70, 50, 50)
-end)
-
 megaScheduleToggle.MouseButton1Click:Connect(function()
     megaSched = not megaSched
     megaScheduleToggle.Text = megaSched and "⚔️ MEGA RAID SCHEDULE (:00): ✅ ON" or "⚔️ MEGA RAID SCHEDULE (:00): ❌ OFF"
     megaScheduleToggle.BackgroundColor3 = megaSched and Color3.fromRGB(50, 100, 50) or Color3.fromRGB(70, 50, 50)
+end)
+
+raftScheduleToggle.MouseButton1Click:Connect(function()
+    raftSched = not raftSched
+    raftScheduleToggle.Text = raftSched and "🚣 RAFT RAID SCHEDULE (:15): ✅ ON" or "🚣 RAFT RAID SCHEDULE (:15): ❌ OFF"
+    raftScheduleToggle.BackgroundColor3 = raftSched and Color3.fromRGB(50, 100, 50) or Color3.fromRGB(70, 50, 50)
 end)
 
 runScheduler()
@@ -893,7 +895,7 @@ local savedConfig = nil
 
 local function autoSaveConfig()
     local config = {
-        version = 6,
+        version = 7,
         savedAt = os.date("%Y-%m-%d %H:%M:%S"),
         challengeOrder = {},
         selectedItems = {},
@@ -1006,7 +1008,7 @@ resetBtn.MouseButton1Click:Connect(function() resetToDefault() end)
 
 exportBtn.MouseButton1Click:Connect(function()
     local config = {
-        version = 6,
+        version = 7,
         savedAt = os.date("%Y-%m-%d %H:%M:%S"),
         challengeOrder = {},
         selectedItems = {},
@@ -1072,10 +1074,10 @@ if autoLoadConfig() then applyConfig() end
 refreshChallengeOrder()
 
 print("=== TD AUTO FARM LOADED ===")
-print("✅ BUILD - Easter & Mega Raid (Fixed positions with Railgun)")
+print("✅ BUILD - Mega Raid & Raft Raid (Fixed positions)")
 print("✅ BUY - Auto buy towers every 1 second")
 print("✅ CHALLENGE - Smart auto-challenge with cooldown detection")
-print("✅ SCHEDULE - Easter (:15/:45), Mega (:00), Anti-AFK")
+print("✅ SCHEDULE - Mega (:00), Raft (:15 with 10s rapid retry), Anti-AFK")
 print("✅ CONFIG - Auto-save/load settings")
 
 end)
