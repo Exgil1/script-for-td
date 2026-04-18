@@ -59,7 +59,7 @@ local items = {
     ["Double Magma Cannon"]="N",["Tesla"]="N",["Magma Cannon"]="N",
     ["Catapult"]="N",["Crossbow"]="N",["Mortar"]="N",
     ["Double Cannon"]="N",["Wizard Tower"]="N",["Archer Tower"]="N",
-    ["Cannon"]="N",["Wall"]="N"
+    ["Cannon"]="N",["Wall"]="N",["Minigun"]="N",["Hidden Tesla"]="N"
 }
 
 --// AVAILABLE CHALLENGES
@@ -303,10 +303,10 @@ local function executeRaftBuild()
     pcall(function() joinRaftRaid:FireServer() end)
     task.wait(1)
     
-    -- The Crusher
+    -- Hidden Tesla (replaced The Crusher)
     local args1 = {
-        "The Crusher{4cd8f70d-c6aa-4999-a139-8248bcee646a}",
-        {Rotation = 90, Position = vector.create(1525.5994873046875, 6.705000400543213, -1647.33642578125)}
+        "Hidden Tesla{3f1f7d15-040a-4de8-a561-e0807416d485}",
+        {Rotation = 90, Position = vector.create(1523.5994873046875, 6.705000400543213, -1645.33642578125)}
     }
     game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("RBuildDefense"):InvokeServer(unpack(args1))
     task.wait(0.5)
@@ -319,10 +319,10 @@ local function executeRaftBuild()
     game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("RBuildDefense"):InvokeServer(unpack(args2))
     task.wait(0.5)
     
-    -- Inferno Beam
+    -- Minigun
     local args3 = {
-        "Inferno Beam{538ce489-08e2-4a0e-9a7b-24792793dbb6}",
-        {Rotation = 90, Position = vector.create(1523.5994873046875, 6.705000400543213, -1629.33642578125)}
+        "Minigun{42ca3c4f-3f71-42dc-90f3-dca5515e5fbb}",
+        {Rotation = 90, Position = vector.create(1513.5994873046875, 6.705000400543213, -1619.33642578125)}
     }
     game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("RBuildDefense"):InvokeServer(unpack(args3))
     task.wait(0.5)
