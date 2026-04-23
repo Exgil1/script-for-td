@@ -1,4 +1,4 @@
---// COMPLETE TD AUTO FARM - WITH AUTO GEM FARM (FIXED TOGGLE)
+--// COMPLETE TD AUTO FARM - WITH WORKING AUTO GEM FARM
 pcall(function()
 
 --// SERVICES
@@ -8,7 +8,7 @@ local player = Players.LocalPlayer
 local HttpService = game:GetService("HttpService")
 local VirtualUser = game:GetService("VirtualUser")
 
---// VECTOR HELPER (MUST BE DEFINED FIRST)
+--// VECTOR HELPER
 local vector = {
     create = function(x, y, z)
         return Vector3.new(x, y, z)
@@ -28,7 +28,7 @@ local joinCommunityRaid = remotesFolder:WaitForChild("JoinCommunityRaid")
 local joinRaftRaid = remotesFolder:WaitForChild("JoinRaftRaid")
 local raidStop = remotesFolder:WaitForChild("RaidStop")
 
---// PLAYER DATA FOR CHALLENGE COOLDOWN
+--// PLAYER DATA
 local challengesFolder = player:FindFirstChild("Challenges")
 local playerFlags = player:FindFirstChild("Flags")
 local raidingFlag = playerFlags and playerFlags:FindFirstChild("Raiding")
@@ -85,6 +85,13 @@ local autoGemFarmThread = nil
 local targetEndWave = 408
 local currentWave = 0
 local waveHistory = {}
+
+--// HELPER FUNCTION FOR TABLE COUNT
+local function tableCount(t)
+    local count = 0
+    for _ in pairs(t) do count = count + 1 end
+    return count
+end
 
 --// CHALLENGE COOLDOWN FUNCTIONS
 local function getChallengeCooldown(challengeName)
@@ -266,7 +273,7 @@ local function stopAutoChallenge()
     if countdownDisplay then countdownDisplay.Text = "---" end
 end
 
---// AUTO GEM FARM FUNCTIONS (WAVE DETECTION & AUTO END)
+--// AUTO GEM FARM FUNCTIONS
 local function getCurrentWave()
     local playerGui = player:FindFirstChild("PlayerGui")
     if not playerGui then return nil end
@@ -295,113 +302,6 @@ local function endCurrentRaid()
     pcall(function()
         raidStop:FireServer()
     end)
-end
-
-local function startAutoGemFarm()
-    if autoGemFarmThread then 
-        task.cancel(autoGemFarmThread)
-        autoGemFarmThread = nil
-    end
-    
-    autoGemFarmActive = true
-    
-    autoGemFarmThread = task.spawn(function()
-        while autoGemFarmActive do
-            local wave = getCurrentWave()
-            
-            if wave and wave > 0 then
-                if wave ~= currentWave then
-                    currentWave = wave
-                    table.insert(waveHistory, 1, {
-                        wave = wave,
-                        time = os.date("%H:%M:%S")
-                    })
-                    if #waveHistory > 50 then table.remove(waveHistory) end
-                    
-                    if currentWaveDisplay then
-                        currentWaveDisplay.Text = "Current Wave: " .. wave
-                    end
-                    
-                    if autoGemFarmStatus then
-                        autoGemFarmStatus.Text = string.format("Current Wave: %d | Target: %d", wave, targetEndWave)
-                        if wave >= targetEndWave then
-                            autoGemFarmStatus.TextColor3 = Color3.new(1, 0.3, 0.3)
-                        else
-                            autoGemFarmStatus.TextColor3 = Color3.new(0.3, 1, 0.3)
-                        end
-                    end
-                    
-                    if wave >= targetEndWave then
-                        if autoGemFarmStatus then
-                            autoGemFarmStatus.Text = string.format("Target reached! Ending raid at wave %d", wave)
-                        end
-                        endCurrentRaid()
-                        autoGemFarmActive = false
-                        if autoGemFarmToggle then
-                            autoGemFarmToggle.Text = "💎 AUTO GEM FARM: OFF"
-                            autoGemFarmToggle.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
-                        end
-                        if autoGemFarmStatus then
-                            autoGemFarmStatus.Text = "Auto Gem Farm: Ready (Target reached)"
-                        end
-                        break
-                    end
-                end
-            end
-            
-            task.wait(0.3)
-        end
-        autoGemFarmThread = nil
-    end)
-end
-
-local function stopAutoGemFarm()
-    autoGemFarmActive = false
-    if autoGemFarmThread then
-        task.cancel(autoGemFarmThread)
-        autoGemFarmThread = nil
-    end
-    if autoGemFarmStatus then
-        autoGemFarmStatus.Text = "Auto Gem Farm: Stopped"
-        autoGemFarmStatus.TextColor3 = Color3.new(0.7, 0.7, 0.7)
-    end
-end
-
-local function toggleAutoGemFarm()
-    if autoGemFarmActive then
-        stopAutoGemFarm()
-        if autoGemFarmToggle then
-            autoGemFarmToggle.Text = "💎 AUTO GEM FARM: OFF"
-            autoGemFarmToggle.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
-        end
-    else
-        startAutoGemFarm()
-        if autoGemFarmToggle then
-            autoGemFarmToggle.Text = "💎 AUTO GEM FARM: ON"
-            autoGemFarmToggle.BackgroundColor3 = Color3.fromRGB(50, 100, 50)
-        end
-    end
-end
-
-local function updateTargetWave(newWave)
-    if newWave and newWave > 0 then
-        targetEndWave = newWave
-        if targetWaveInput then
-            targetWaveInput.Text = tostring(targetEndWave)
-        end
-        if autoEndWaveDisplay then
-            autoEndWaveDisplay.Text = "Target Wave: " .. targetEndWave
-        end
-        if autoGemFarmStatus then
-            autoGemFarmStatus.Text = string.format("Target set to wave %d", targetEndWave)
-            task.wait(2)
-            if autoGemFarmActive then
-                autoGemFarmStatus.Text = string.format("Current Wave: %d | Target: %d", currentWave, targetEndWave)
-            else
-                autoGemFarmStatus.Text = "Auto Gem Farm: Ready"
-            end
-        end
-    end
 end
 
 --// BUILD FUNCTIONS
@@ -643,11 +543,14 @@ for name, typ in pairs(items) do
         sel = not sel
         if sel then
             btn.Text = btn.Text:gsub("%[ %]","[X]")
+            btn.BackgroundColor3 = Color3.fromRGB(60, 100, 60)
             selectedItems[name] = true
         else
             btn.Text = btn.Text:gsub("%[X%]","[ ]")
+            btn.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
             selectedItems[name] = nil
         end
+        autoSaveConfig()
     end)
 end
 
@@ -687,6 +590,7 @@ autoBuyToggle.MouseButton1Click:Connect(function()
     autoBuyToggle.Text = autoBuyActive and "🔴 AUTO BUY: ON" or "🟢 AUTO BUY: OFF"
     autoBuyToggle.BackgroundColor3 = autoBuyActive and Color3.fromRGB(50, 100, 50) or Color3.fromRGB(70, 50, 50)
     if autoBuyActive then autoBuyLoop() end
+    autoSaveConfig()
 end)
 
 --// CHALLENGE TAB
@@ -775,12 +679,14 @@ for i, ch in ipairs(allChallenges) do
             toggleBtn.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
         end
         refreshChallengeOrder()
+        autoSaveConfig()
     end)
     
     upBtn.MouseButton1Click:Connect(function()
         if i > 1 then
             challengeItems[i], challengeItems[i-1] = challengeItems[i-1], challengeItems[i]
             refreshChallengeOrder()
+            autoSaveConfig()
         end
     end)
     
@@ -788,6 +694,7 @@ for i, ch in ipairs(allChallenges) do
         if i < #allChallenges then
             challengeItems[i], challengeItems[i+1] = challengeItems[i+1], challengeItems[i]
             refreshChallengeOrder()
+            autoSaveConfig()
         end
     end)
 end
@@ -819,6 +726,7 @@ autoChallengeToggle.MouseButton1Click:Connect(function()
         autoChallengeToggle.Text = "🎯 AUTO CHALLENGE: ON"
         autoChallengeToggle.BackgroundColor3 = Color3.fromRGB(50, 100, 50)
     end
+    autoSaveConfig()
 end)
 
 local refreshBtn = Instance.new("TextButton")
@@ -838,7 +746,7 @@ end)
 
 refreshChallengeOrder()
 
---// AUTO GEM FARM TAB (CREATED FIRST BEFORE REFERENCES)
+--// AUTO GEM FARM TAB
 local gemFarmPanel = panels.gemfarm
 
 local gemFarmTitle = Instance.new("TextLabel")
@@ -898,39 +806,36 @@ setWaveBtn.TextColor3 = Color3.new(1, 1, 1)
 setWaveBtn.TextSize = 12
 setWaveBtn.Parent = waveInputFrame
 
--- CREATE THE TOGGLE BUTTON FIRST
+local buttonFrame = Instance.new("Frame")
+buttonFrame.Size = UDim2.new(1, -20, 0, 45)
+buttonFrame.BackgroundTransparency = 1
+buttonFrame.Parent = gemFarmPanel
+
 local autoGemFarmToggle = Instance.new("TextButton")
-autoGemFarmToggle.Size = UDim2.new(1, -20, 0, 55)
+autoGemFarmToggle.Size = UDim2.new(0.48, -5, 1, 0)
 autoGemFarmToggle.Text = "💎 AUTO GEM FARM: OFF"
 autoGemFarmToggle.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
 autoGemFarmToggle.TextColor3 = Color3.new(1, 1, 1)
 autoGemFarmToggle.Font = Enum.Font.GothamBold
-autoGemFarmToggle.TextSize = 16
-autoGemFarmToggle.Parent = gemFarmPanel
+autoGemFarmToggle.TextSize = 12
+autoGemFarmToggle.Parent = buttonFrame
 
--- CREATE STATUS LABEL AFTER TOGGLE
+local testEndBtn = Instance.new("TextButton")
+testEndBtn.Size = UDim2.new(0.48, -5, 1, 0)
+testEndBtn.Position = UDim2.new(0.52, 0, 0, 0)
+testEndBtn.Text = "🔧 TEST END RAID"
+testEndBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 50)
+testEndBtn.TextColor3 = Color3.new(1, 1, 1)
+testEndBtn.Font = Enum.Font.GothamBold
+testEndBtn.TextSize = 12
+testEndBtn.Parent = buttonFrame
+
 local autoGemFarmStatus = Instance.new("TextLabel")
 autoGemFarmStatus.Size = UDim2.new(1, -20, 0, 40)
 autoGemFarmStatus.Text = "Auto Gem Farm: Ready"
 autoGemFarmStatus.TextColor3 = Color3.new(0.7, 0.7, 0.7)
 autoGemFarmStatus.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 autoGemFarmStatus.Parent = gemFarmPanel
-
--- NOW CONNECT THE TOGGLE FUNCTION
-autoGemFarmToggle.MouseButton1Click:Connect(function()
-    print("Toggle clicked, current state: " .. tostring(autoGemFarmActive))
-    if autoGemFarmActive then
-        stopAutoGemFarm()
-        autoGemFarmToggle.Text = "💎 AUTO GEM FARM: OFF"
-        autoGemFarmToggle.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
-        print("Auto Gem Farm turned OFF")
-    else
-        startAutoGemFarm()
-        autoGemFarmToggle.Text = "💎 AUTO GEM FARM: ON"
-        autoGemFarmToggle.BackgroundColor3 = Color3.fromRGB(50, 100, 50)
-        print("Auto Gem Farm turned ON, target wave: " .. targetEndWave)
-    end
-end)
 
 local endNowBtn = Instance.new("TextButton")
 endNowBtn.Size = UDim2.new(0.48, -5, 0, 40)
@@ -951,11 +856,11 @@ refreshWaveBtn.Font = Enum.Font.GothamBold
 refreshWaveBtn.TextSize = 14
 refreshWaveBtn.Parent = gemFarmPanel
 
--- CONNECT BUTTON FUNCTIONS
 setWaveBtn.MouseButton1Click:Connect(function()
     local newWave = tonumber(targetWaveInput.Text)
     if newWave and newWave > 0 then
-        updateTargetWave(newWave)
+        targetEndWave = newWave
+        autoEndWaveDisplay.Text = "Target Wave: " .. targetEndWave
         autoGemFarmStatus.Text = "Target set to wave " .. newWave
         task.wait(2)
         if autoGemFarmActive then
@@ -963,6 +868,7 @@ setWaveBtn.MouseButton1Click:Connect(function()
         else
             autoGemFarmStatus.Text = "Auto Gem Farm: Ready"
         end
+        autoSaveConfig()
     else
         autoGemFarmStatus.Text = "Invalid wave number!"
         task.wait(2)
@@ -970,8 +876,24 @@ setWaveBtn.MouseButton1Click:Connect(function()
     end
 end)
 
+testEndBtn.MouseButton1Click:Connect(function()
+    autoGemFarmStatus.Text = "Testing raid stop..."
+    pcall(function()
+        raidStop:FireServer()
+        autoGemFarmStatus.Text = "Test: Raid stop executed!"
+        task.wait(2)
+        if autoGemFarmActive then
+            autoGemFarmStatus.Text = string.format("Current Wave: %d | Target: %d", currentWave, targetEndWave)
+        else
+            autoGemFarmStatus.Text = "Auto Gem Farm: Ready"
+        end
+    end)
+end)
+
 endNowBtn.MouseButton1Click:Connect(function()
-    endCurrentRaid()
+    pcall(function()
+        raidStop:FireServer()
+    end)
     autoGemFarmStatus.Text = "Raid ended manually"
     task.wait(2)
     if autoGemFarmActive then
@@ -994,13 +916,73 @@ refreshWaveBtn.MouseButton1Click:Connect(function()
             autoGemFarmStatus.Text = "Auto Gem Farm: Ready"
         end
     else
-        autoGemFarmStatus.Text = "No wave detected"
+        autoGemFarmStatus.Text = "No wave detected (start a raid)"
         task.wait(2)
         autoGemFarmStatus.Text = "Auto Gem Farm: Ready"
     end
 end)
 
--- Wave monitoring for display (always active)
+autoGemFarmToggle.MouseButton1Click:Connect(function()
+    if autoGemFarmActive then
+        autoGemFarmActive = false
+        if autoGemFarmThread then
+            task.cancel(autoGemFarmThread)
+            autoGemFarmThread = nil
+        end
+        autoGemFarmToggle.Text = "💎 AUTO GEM FARM: OFF"
+        autoGemFarmToggle.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
+        autoGemFarmStatus.Text = "Auto Gem Farm: Stopped"
+        autoGemFarmStatus.TextColor3 = Color3.new(0.7, 0.7, 0.7)
+    else
+        autoGemFarmActive = true
+        autoGemFarmToggle.Text = "💎 AUTO GEM FARM: ON"
+        autoGemFarmToggle.BackgroundColor3 = Color3.fromRGB(50, 100, 50)
+        autoGemFarmStatus.Text = string.format("Monitoring - Target: %d", targetEndWave)
+        autoGemFarmStatus.TextColor3 = Color3.new(0.3, 1, 0.3)
+        
+        if autoGemFarmThread then task.cancel(autoGemFarmThread) end
+        autoGemFarmThread = task.spawn(function()
+            while autoGemFarmActive do
+                local wave = getCurrentWave()
+                if wave and wave > 0 then
+                    if wave ~= currentWave then
+                        currentWave = wave
+                        currentWaveDisplay.Text = "Current Wave: " .. wave
+                        
+                        if wave >= targetEndWave then
+                            currentWaveDisplay.TextColor3 = Color3.new(1, 0.3, 0.3)
+                        else
+                            currentWaveDisplay.TextColor3 = Color3.new(0.3, 1, 0.3)
+                        end
+                        
+                        autoGemFarmStatus.Text = string.format("Wave: %d | Target: %d", wave, targetEndWave)
+                        if wave >= targetEndWave then
+                            autoGemFarmStatus.TextColor3 = Color3.new(1, 0.3, 0.3)
+                        else
+                            autoGemFarmStatus.TextColor3 = Color3.new(0.3, 1, 0.3)
+                        end
+                        
+                        if wave >= targetEndWave then
+                            autoGemFarmStatus.Text = "TARGET REACHED! Ending raid..."
+                            pcall(function()
+                                raidStop:FireServer()
+                            end)
+                            autoGemFarmActive = false
+                            autoGemFarmToggle.Text = "💎 AUTO GEM FARM: OFF"
+                            autoGemFarmToggle.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
+                            autoGemFarmStatus.Text = "Auto Gem Farm: Completed at wave " .. wave
+                            break
+                        end
+                    end
+                end
+                task.wait(0.3)
+            end
+            autoGemFarmThread = nil
+        end)
+    end
+    autoSaveConfig()
+end)
+
 spawn(function()
     while true do
         local wave = getCurrentWave()
@@ -1046,7 +1028,6 @@ raftScheduleToggle.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
 raftScheduleToggle.TextColor3 = Color3.new(1, 1, 1)
 raftScheduleToggle.Parent = schedulePanel
 
---// ANTI-AFK SECTION
 local antiAFKCard = Instance.new("Frame")
 antiAFKCard.Size = UDim2.new(1, -20, 0, 80)
 antiAFKCard.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
@@ -1092,9 +1073,9 @@ antiAFKToggle.MouseButton1Click:Connect(function()
         antiAFKStatus.Text = "Status: Active - Preventing AFK"
         antiAFKStatus.TextColor3 = Color3.new(0.3, 1, 0.3)
     end
+    autoSaveConfig()
 end)
 
--- Schedule Logic
 local megaSched = false
 local raftSched = false
 local lastCheck = -1
@@ -1138,12 +1119,14 @@ megaScheduleToggle.MouseButton1Click:Connect(function()
     megaSched = not megaSched
     megaScheduleToggle.Text = megaSched and "⚔️ MEGA RAID SCHEDULE (:00): ✅ ON" or "⚔️ MEGA RAID SCHEDULE (:00): ❌ OFF"
     megaScheduleToggle.BackgroundColor3 = megaSched and Color3.fromRGB(50, 100, 50) or Color3.fromRGB(70, 50, 50)
+    autoSaveConfig()
 end)
 
 raftScheduleToggle.MouseButton1Click:Connect(function()
     raftSched = not raftSched
     raftScheduleToggle.Text = raftSched and "🚣 RAFT RAID SCHEDULE (:15 & :45): ✅ ON" or "🚣 RAFT RAID SCHEDULE (:15 & :45): ❌ OFF"
     raftScheduleToggle.BackgroundColor3 = raftSched and Color3.fromRGB(50, 100, 50) or Color3.fromRGB(70, 50, 50)
+    autoSaveConfig()
 end)
 
 runScheduler()
@@ -1217,7 +1200,7 @@ local savedConfig = nil
 
 local function autoSaveConfig()
     local config = {
-        version = 8,
+        version = 9,
         savedAt = os.date("%Y-%m-%d %H:%M:%S"),
         challengeOrder = {},
         selectedItems = {},
@@ -1232,7 +1215,9 @@ local function autoSaveConfig()
     for _, item in ipairs(challengeItems) do
         table.insert(config.challengeOrder, {name=item.name, id=item.id, enabled=item.enabled})
     end
-    for item,_ in pairs(selectedItems) do table.insert(config.selectedItems, item) end
+    for item,_ in pairs(selectedItems) do
+        table.insert(config.selectedItems, item)
+    end
     local success, encoded = pcall(function() return HttpService:JSONEncode(config) end)
     if success then
         pcall(function() writefile(configName .. ".json", encoded) end)
@@ -1295,10 +1280,8 @@ local function applyConfig()
     end
     if savedConfig.autoGemFarmEnabled then
         targetEndWave = savedConfig.targetEndWave or 408
-        updateTargetWave(targetEndWave)
-        startAutoGemFarm()
-        autoGemFarmToggle.Text = "💎 AUTO GEM FARM: ON"
-        autoGemFarmToggle.BackgroundColor3 = Color3.fromRGB(50, 100, 50)
+        autoEndWaveDisplay.Text = "Target Wave: " .. targetEndWave
+        targetWaveInput.Text = tostring(targetEndWave)
     end
     if savedConfig.megaSched ~= nil then
         megaSched = savedConfig.megaSched
@@ -1330,17 +1313,31 @@ local function resetToDefault()
     for name, btn in pairs(itemButtons) do
         btn.Text = btn.Text:gsub("%[X%]","[ ]")
         btn.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
+        selectedItems[name] = nil
     end
     selectedItems = {}
-    if autoBuyActive then autoBuyActive = false end
-    autoBuyToggle.Text = "🟢 AUTO BUY: OFF"
-    autoBuyToggle.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
-    if autoChallengeActive then stopAutoChallenge() end
-    if autoGemFarmActive then stopAutoGemFarm() end
-    autoGemFarmToggle.Text = "💎 AUTO GEM FARM: OFF"
-    autoGemFarmToggle.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
+    if autoBuyActive then
+        autoBuyActive = false
+        autoBuyToggle.Text = "🟢 AUTO BUY: OFF"
+        autoBuyToggle.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
+    end
+    if autoChallengeActive then
+        stopAutoChallenge()
+        autoChallengeToggle.Text = "🎯 AUTO CHALLENGE: OFF"
+        autoChallengeToggle.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
+    end
+    if autoGemFarmActive then
+        autoGemFarmActive = false
+        if autoGemFarmThread then
+            task.cancel(autoGemFarmThread)
+            autoGemFarmThread = nil
+        end
+        autoGemFarmToggle.Text = "💎 AUTO GEM FARM: OFF"
+        autoGemFarmToggle.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
+    end
     targetEndWave = 408
-    updateTargetWave(408)
+    autoEndWaveDisplay.Text = "Target Wave: " .. targetEndWave
+    targetWaveInput.Text = tostring(targetEndWave)
     if antiAFKActive then stopAntiAFK() end
     antiAFKToggle.Text = "🔄 ANTI-AFK: OFF"
     antiAFKToggle.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
@@ -1362,7 +1359,7 @@ resetBtn.MouseButton1Click:Connect(function() resetToDefault() end)
 
 exportBtn.MouseButton1Click:Connect(function()
     local config = {
-        version = 8,
+        version = 9,
         savedAt = os.date("%Y-%m-%d %H:%M:%S"),
         challengeOrder = {},
         selectedItems = {},
@@ -1377,7 +1374,9 @@ exportBtn.MouseButton1Click:Connect(function()
     for _, item in ipairs(challengeItems) do
         table.insert(config.challengeOrder, {name=item.name, id=item.id, enabled=item.enabled})
     end
-    for item,_ in pairs(selectedItems) do table.insert(config.selectedItems, item) end
+    for item,_ in pairs(selectedItems) do
+        table.insert(config.selectedItems, item)
+    end
     local success, json = pcall(function() return HttpService:JSONEncode(config) end)
     if success then
         pcall(function() setclipboard("[TD CONFIG] " .. json) end)
@@ -1431,11 +1430,11 @@ if autoLoadConfig() then applyConfig() end
 refreshChallengeOrder()
 
 print("=== TD AUTO FARM LOADED ===")
-print("✅ BUILD - Mega Raid & Raft Raid (Fixed positions)")
+print("✅ BUILD - Mega Raid & Raft Raid")
 print("✅ BUY - Auto buy towers (NO DELAY)")
-print("✅ CHALLENGE - Smart auto-challenge with cooldown detection")
-print("✅ GEM FARM - Auto end raid at customizable wave (toggle on/off)")
-print("✅ SCHEDULE - Mega (:00), Raft (:15 & :45 with 10s rapid retry), Anti-AFK")
+print("✅ CHALLENGE - Smart auto-challenge")
+print("✅ GEM FARM - Auto end raid at wave (TOGGLE ON/OFF)")
+print("✅ SCHEDULE - Mega (:00), Raft (:15 & :45)")
 print("✅ CONFIG - Auto-save/load settings")
 
 end)
