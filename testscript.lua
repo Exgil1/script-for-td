@@ -68,7 +68,6 @@ local autoEndActive = false
 local currentWave = 0
 local waveHistory = {}
 local raidStopRemote = nil
-local waveHistoryLog = {}
 
 local function findRaidStop()
     local events = ReplicatedStorage:FindFirstChild("Events")
@@ -89,70 +88,42 @@ local function endRaid()
     end
 end
 
--- Track all wave numbers and their last seen time
-local waveSeen = {}
-local function getCurrentWave()
+-- DIRECTLY target StatValue (the working source from your log)
+local function getWaveFromStatValue()
     local playerGui = player:FindFirstChild("PlayerGui")
     if not playerGui then return nil end
     
-    local currentTime = tick()
-    local foundWave = nil
-    
-    local function searchForWave(instance)
-        for _, child in pairs(instance:GetChildren()) do
-            if child:IsA("TextLabel") then
-                local text = child.Text or ""
-                -- Find any number that could be a wave (2-3 digits)
-                local waveNum = text:match("(%d+)")
-                if waveNum then
-                    local num = tonumber(waveNum)
-                    if num and num > 0 and num < 500 then
-                        -- Update when this wave was last seen
-                        waveSeen[num] = currentTime
-                        -- If this is the most recently updated wave, use it
-                        if not foundWave or waveSeen[foundWave] < currentTime then
-                            foundWave = num
-                        end
-                    end
-                end
+    local function findStatValue(instance)
+        -- Check current instance
+        if instance:IsA("TextLabel") and instance.Name == "StatValue" then
+            local text = instance.Text or ""
+            -- Extract number from text
+            local num = text:match("(%d+)")
+            if num then
+                return tonumber(num)
             end
-            searchForWave(child)
         end
+        
+        -- Search children
+        for _, child in pairs(instance:GetChildren()) do
+            local result = findStatValue(child)
+            if result then return result end
+        end
+        return nil
     end
     
-    searchForWave(playerGui)
-    
-    -- Clean up old entries (older than 2 seconds)
-    for wave, time in pairs(waveSeen) do
-        if currentTime - time > 2 then
-            waveSeen[wave] = nil
-        end
-    end
-    
-    -- Find the wave that was updated most recently
-    local mostRecent = nil
-    local mostRecentTime = 0
-    
-    for wave, time in pairs(waveSeen) do
-        if time > mostRecentTime then
-            mostRecentTime = time
-            mostRecent = wave
-        end
-    end
-    
-    return mostRecent
+    return findStatValue(playerGui)
 end
 
--- Continuous monitoring
+-- Continuous monitoring using StatValue
 spawn(function()
     findRaidStop()
-    local lastSeenWave = 0
     
     while true do
-        local wave = getCurrentWave()
+        local wave = getWaveFromStatValue()
         
         if wave and wave > 0 then
-            -- Only update if wave changed
+            -- Update if wave changed
             if wave ~= currentWave then
                 currentWave = wave
                 waveDisplay.Text = "WAVE: " .. wave
@@ -164,14 +135,11 @@ spawn(function()
                 })
                 if #waveHistory > 30 then table.remove(waveHistory) end
                 
-                -- Log to history
-                table.insert(waveHistoryLog, 1, "[" .. os.date("%H:%M:%S") .. "] Wave: " .. wave)
-                if #waveHistoryLog > 50 then table.remove(waveHistoryLog) end
-                
                 -- Check target
                 if wave >= 408 then
                     waveDisplay.TextColor3 = Color3.new(255, 0, 0)
                     statusLabel.Text = "TARGET REACHED: Wave " .. wave
+                    
                     if autoEndActive then
                         endRaid()
                         autoEndActive = false
@@ -184,6 +152,12 @@ spawn(function()
                     statusLabel.Text = "Current Wave: " .. wave
                 end
             end
+        elseif not wave and currentWave > 0 then
+            -- Raid ended (StatValue no longer shows wave)
+            currentWave = 0
+            waveDisplay.Text = "WAVE: ???"
+            waveDisplay.TextColor3 = Color3.new(255, 255, 0)
+            statusLabel.Text = "No raid detected"
         end
         
         wait(0.2)
@@ -208,12 +182,12 @@ endNowBtn.MouseButton1Click:Connect(function()
 end)
 
 copyBtn.MouseButton1Click:Connect(function()
-    local data = "WAVE HISTORY (Most recent first)\n"
+    local data = "WAVE HISTORY (from StatValue)\n"
     data = data .. "Time: " .. os.date("%Y-%m-%d %H:%M:%S") .. "\n"
     data = data .. "Current Wave: " .. currentWave .. "\n"
     data = data .. "--------------------\n"
-    for i, entry in ipairs(waveHistoryLog) do
-        data = data .. entry .. "\n"
+    for i, w in ipairs(waveHistory) do
+        data = data .. "[" .. w.time .. "] Wave: " .. w.wave .. "\n"
     end
     pcall(function()
         setclipboard(data)
