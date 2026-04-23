@@ -10,7 +10,7 @@ screenGui.ResetOnSpawn = false
 screenGui.Parent = game:GetService("CoreGui")
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 300, 0, 250)
+mainFrame.Size = UDim2.new(0, 320, 0, 280)
 mainFrame.Position = UDim2.new(0, 10, 0, 100)
 mainFrame.BackgroundColor3 = Color3.new(0, 0, 0)
 mainFrame.BackgroundTransparency = 0
@@ -19,18 +19,18 @@ mainFrame.BorderColor3 = Color3.new(0, 255, 0)
 mainFrame.Parent = screenGui
 
 local waveDisplay = Instance.new("TextLabel")
-waveDisplay.Size = UDim2.new(1, 0, 0, 60)
+waveDisplay.Size = UDim2.new(1, 0, 0, 70)
 waveDisplay.Position = UDim2.new(0, 0, 0, 10)
 waveDisplay.Text = "WAVE: ???"
 waveDisplay.TextColor3 = Color3.new(0, 255, 0)
 waveDisplay.BackgroundColor3 = Color3.new(0, 0, 0)
-waveDisplay.TextSize = 36
+waveDisplay.TextSize = 40
 waveDisplay.Font = Enum.Font.SourceSansBold
 waveDisplay.Parent = mainFrame
 
 local statusLabel = Instance.new("TextLabel")
-statusLabel.Size = UDim2.new(1, 0, 0, 25)
-statusLabel.Position = UDim2.new(0, 0, 0, 80)
+statusLabel.Size = UDim2.new(1, 0, 0, 30)
+statusLabel.Position = UDim2.new(0, 0, 0, 90)
 statusLabel.Text = "Status: Ready"
 statusLabel.TextColor3 = Color3.new(255, 255, 255)
 statusLabel.BackgroundColor3 = Color3.new(0, 0, 0)
@@ -38,34 +38,35 @@ statusLabel.TextSize = 12
 statusLabel.Parent = mainFrame
 
 local autoEndBtn = Instance.new("TextButton")
-autoEndBtn.Size = UDim2.new(0.9, 0, 0, 35)
-autoEndBtn.Position = UDim2.new(0.05, 0, 0, 115)
+autoEndBtn.Size = UDim2.new(0.9, 0, 0, 40)
+autoEndBtn.Position = UDim2.new(0.05, 0, 0, 130)
 autoEndBtn.Text = "AUTO END (408): OFF"
 autoEndBtn.BackgroundColor3 = Color3.new(100, 0, 0)
 autoEndBtn.TextColor3 = Color3.new(255, 255, 255)
-autoEndBtn.TextSize = 12
+autoEndBtn.TextSize = 13
 autoEndBtn.Parent = mainFrame
 
 local endNowBtn = Instance.new("TextButton")
-endNowBtn.Size = UDim2.new(0.9, 0, 0, 35)
-endNowBtn.Position = UDim2.new(0.05, 0, 0, 155)
+endNowBtn.Size = UDim2.new(0.9, 0, 0, 40)
+endNowBtn.Position = UDim2.new(0.05, 0, 0, 175)
 endNowBtn.Text = "END RAID NOW"
 endNowBtn.BackgroundColor3 = Color3.new(200, 0, 0)
 endNowBtn.TextColor3 = Color3.new(255, 255, 255)
-endNowBtn.TextSize = 12
+endNowBtn.TextSize = 13
 endNowBtn.Parent = mainFrame
 
 local copyBtn = Instance.new("TextButton")
-copyBtn.Size = UDim2.new(0.9, 0, 0, 35)
-copyBtn.Position = UDim2.new(0.05, 0, 0, 195)
+copyBtn.Size = UDim2.new(0.9, 0, 0, 40)
+copyBtn.Position = UDim2.new(0.05, 0, 0, 220)
 copyBtn.Text = "COPY LOG"
 copyBtn.BackgroundColor3 = Color3.new(0, 0, 150)
 copyBtn.TextColor3 = Color3.new(255, 255, 255)
-copyBtn.TextSize = 12
+copyBtn.TextSize = 13
 copyBtn.Parent = mainFrame
 
 local autoEndActive = false
 local currentWave = 0
+local lastLoggedWave = 0
 local waveHistory = {}
 local raidStopRemote = nil
 
@@ -88,41 +89,79 @@ local function endRaid()
     end
 end
 
--- Force refresh wave detection - look for ANY wave number
+-- Get current wave by looking for SPECIFIC patterns (not just any number)
 local function getCurrentWave()
     local playerGui = player:FindFirstChild("PlayerGui")
     if not playerGui then return nil end
     
-    local highestWave = 0
+    local foundWaves = {}
     
-    local function searchAll(instance)
+    local function searchForWave(instance)
         for _, child in pairs(instance:GetChildren()) do
             if child:IsA("TextLabel") then
                 local text = child.Text or ""
-                -- Look for any 3-digit or 2-digit number that could be a wave
-                local nums = {}
-                for num in string.gmatch(text, "(%d+)") do
-                    local n = tonumber(num)
-                    if n and n > 0 and n < 500 then
-                        table.insert(nums, n)
-                    end
-                end
-                -- Get the highest number from this text
-                for _, n in ipairs(nums) do
-                    if n > highestWave then
-                        highestWave = n
+                local lowerText = string.lower(text)
+                
+                -- Look for patterns that indicate CURRENT wave
+                local patterns = {
+                    {pattern = "wave[%s:]*([%d]+)", isCurrent = true},
+                    {pattern = "wave[%s]*([%d]+)", isCurrent = true},
+                    {pattern = "round[%s:]*([%d]+)", isCurrent = true},
+                    {pattern = "w[%s]*([%d]+)", isCurrent = false},
+                    {pattern = "(%d+)/", isCurrent = true},  -- Format like "42/50"
+                    {pattern = "(%d+)%%", isCurrent = false},
+                }
+                
+                for _, p in ipairs(patterns) do
+                    local num = string.match(lowerText, p.pattern)
+                    if num then
+                        local waveNum = tonumber(num)
+                        if waveNum and waveNum > 0 and waveNum < 500 then
+                            table.insert(foundWaves, {
+                                wave = waveNum,
+                                text = text,
+                                isCurrent = p.isCurrent,
+                                instanceName = child.Name
+                            })
+                        end
                     end
                 end
             end
-            searchAll(child)
+            searchForWave(child)
         end
     end
     
-    searchAll(playerGui)
-    return highestWave > 0 and highestWave or nil
+    searchForWave(playerGui)
+    
+    -- First priority: Look for "Wave X" pattern (most likely current)
+    for _, w in pairs(foundWaves) do
+        if w.isCurrent and string.find(string.lower(w.text), "wave") then
+            return w.wave
+        end
+    end
+    
+    -- Second: Look for "Round X" pattern
+    for _, w in pairs(foundWaves) do
+        if w.isCurrent and string.find(string.lower(w.text), "round") then
+            return w.wave
+        end
+    end
+    
+    -- Third: Return the SMALLEST wave found (current wave is usually the smallest)
+    if #foundWaves > 0 then
+        local smallest = 999
+        for _, w in pairs(foundWaves) do
+            if w.wave < smallest then
+                smallest = w.wave
+            end
+        end
+        return smallest
+    end
+    
+    return nil
 end
 
--- Continuous monitoring with force refresh
+-- Continuous monitoring
 spawn(function()
     findRaidStop()
     
@@ -138,33 +177,31 @@ spawn(function()
                 wave = wave,
                 time = os.date("%H:%M:%S")
             })
-            if #waveHistory > 20 then table.remove(waveHistory) end
+            if #waveHistory > 30 then table.remove(waveHistory) end
             
             -- Check target
             if wave >= 408 then
                 waveDisplay.TextColor3 = Color3.new(255, 0, 0)
-                statusLabel.Text = "TARGET REACHED: " .. wave
+                statusLabel.Text = "TARGET REACHED: Wave " .. wave
                 if autoEndActive then
                     endRaid()
                     autoEndActive = false
                     autoEndBtn.Text = "AUTO END (408): OFF"
                     autoEndBtn.BackgroundColor3 = Color3.new(100, 0, 0)
+                    statusLabel.Text = "Auto-ended at wave " .. wave
                 end
             else
                 waveDisplay.TextColor3 = Color3.new(0, 255, 0)
-                statusLabel.Text = "Wave: " .. wave
+                statusLabel.Text = "Current Wave: " .. wave
             end
-        elseif not wave then
-            -- No wave found, reset display
-            if currentWave ~= 0 then
-                currentWave = 0
-                waveDisplay.Text = "WAVE: ???"
-                waveDisplay.TextColor3 = Color3.new(255, 255, 0)
-                statusLabel.Text = "No raid detected"
+        elseif wave and wave == currentWave then
+            -- Just update status text without refreshing display
+            if wave < 408 then
+                statusLabel.Text = "Current Wave: " .. wave
             end
         end
         
-        wait(0.3)
+        wait(0.2)
     end
 end)
 
@@ -198,7 +235,7 @@ copyBtn.MouseButton1Click:Connect(function()
         statusLabel.Text = "Copied!"
         task.wait(1.5)
         if currentWave > 0 then
-            statusLabel.Text = "Wave: " .. currentWave
+            statusLabel.Text = "Current Wave: " .. currentWave
         else
             statusLabel.Text = "Ready"
         end
