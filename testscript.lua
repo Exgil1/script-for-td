@@ -5,230 +5,270 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local player = Players.LocalPlayer
 
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "WaveControl"
+screenGui.Name = "UIChangeDetector"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = game:GetService("CoreGui")
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 300, 0, 250)
-mainFrame.Position = UDim2.new(0, 10, 0, 100)
+mainFrame.Size = UDim2.new(0, 400, 0, 600)
+mainFrame.Position = UDim2.new(0, 10, 0, 50)
 mainFrame.BackgroundColor3 = Color3.new(0, 0, 0)
 mainFrame.BackgroundTransparency = 0
 mainFrame.BorderSizePixel = 2
-mainFrame.BorderColor3 = Color3.new(0, 255, 0)
+mainFrame.BorderColor3 = Color3.new(255, 100, 0)
 mainFrame.Parent = screenGui
 
-local waveDisplay = Instance.new("TextLabel")
-waveDisplay.Size = UDim2.new(1, 0, 0, 70)
-waveDisplay.Position = UDim2.new(0, 0, 0, 10)
-waveDisplay.Text = "WAVE: ???"
-waveDisplay.TextColor3 = Color3.new(0, 255, 0)
-waveDisplay.BackgroundColor3 = Color3.new(0, 0, 0)
-waveDisplay.TextSize = 40
-waveDisplay.Font = Enum.Font.SourceSansBold
-waveDisplay.Parent = mainFrame
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 40)
+title.Text = "UI CHANGE DETECTOR - FIND WAVE ELEMENT"
+title.TextColor3 = Color3.new(255, 255, 0)
+title.BackgroundColor3 = Color3.new(50, 50, 50)
+title.TextSize = 12
+title.Font = Enum.Font.SourceSansBold
+title.Parent = mainFrame
 
-local statusLabel = Instance.new("TextLabel")
-statusLabel.Size = UDim2.new(1, 0, 0, 30)
-statusLabel.Position = UDim2.new(0, 0, 0, 90)
-statusLabel.Text = "Status: Ready"
-statusLabel.TextColor3 = Color3.new(255, 255, 255)
-statusLabel.BackgroundColor3 = Color3.new(0, 0, 0)
-statusLabel.TextSize = 12
-statusLabel.Parent = mainFrame
+local currentWaveDisplay = Instance.new("TextLabel")
+currentWaveDisplay.Size = UDim2.new(1, -20, 0, 50)
+currentWaveDisplay.Position = UDim2.new(0, 10, 0, 50)
+currentWaveDisplay.Text = "Current Detected Wave: ???"
+currentWaveDisplay.TextColor3 = Color3.new(0, 255, 0)
+currentWaveDisplay.BackgroundColor3 = Color3.new(30, 30, 30)
+currentWaveDisplay.TextSize = 18
+currentWaveDisplay.Font = Enum.Font.SourceSansBold
+currentWaveDisplay.Parent = mainFrame
 
-local autoEndBtn = Instance.new("TextButton")
-autoEndBtn.Size = UDim2.new(0.9, 0, 0, 40)
-autoEndBtn.Position = UDim2.new(0.05, 0, 0, 130)
-autoEndBtn.Text = "AUTO END (408): OFF"
-autoEndBtn.BackgroundColor3 = Color3.new(100, 0, 0)
-autoEndBtn.TextColor3 = Color3.new(255, 255, 255)
-autoEndBtn.TextSize = 13
-autoEndBtn.Parent = mainFrame
+local targetElementDisplay = Instance.new("TextLabel")
+targetElementDisplay.Size = UDim2.new(1, -20, 0, 40)
+targetElementDisplay.Position = UDim2.new(0, 10, 0, 105)
+targetElementDisplay.Text = "Wave Source: Not found yet"
+targetElementDisplay.TextColor3 = Color3.new(255, 255, 255)
+targetElementDisplay.BackgroundColor3 = Color3.new(30, 30, 30)
+targetElementDisplay.TextSize = 11
+targetElementDisplay.Parent = mainFrame
 
-local endNowBtn = Instance.new("TextButton")
-endNowBtn.Size = UDim2.new(0.9, 0, 0, 40)
-endNowBtn.Position = UDim2.new(0.05, 0, 0, 175)
-endNowBtn.Text = "END RAID NOW"
-endNowBtn.BackgroundColor3 = Color3.new(200, 0, 0)
-endNowBtn.TextColor3 = Color3.new(255, 255, 255)
-endNowBtn.TextSize = 13
-endNowBtn.Parent = mainFrame
+local logScroll = Instance.new("ScrollingFrame")
+logScroll.Size = UDim2.new(1, -20, 0, 400)
+logScroll.Position = UDim2.new(0, 10, 0, 155)
+logScroll.BackgroundColor3 = Color3.new(20, 20, 20)
+logScroll.Parent = mainFrame
+
+local logList = Instance.new("UIListLayout")
+logList.Parent = logScroll
+logList.Padding = UDim.new(0, 1)
+
+local logContent = Instance.new("Frame")
+logContent.Size = UDim2.new(1, 0, 0, 0)
+logContent.BackgroundTransparency = 1
+logContent.Parent = logScroll
 
 local copyBtn = Instance.new("TextButton")
-copyBtn.Size = UDim2.new(0.9, 0, 0, 40)
-copyBtn.Position = UDim2.new(0.05, 0, 0, 220)
-copyBtn.Text = "COPY LOG"
+copyBtn.Size = UDim2.new(0.9, 0, 0, 35)
+copyBtn.Position = UDim2.new(0.05, 0, 0, 565)
+copyBtn.Text = "COPY ALL CHANGES"
 copyBtn.BackgroundColor3 = Color3.new(0, 0, 150)
 copyBtn.TextColor3 = Color3.new(255, 255, 255)
-copyBtn.TextSize = 13
+copyBtn.TextSize = 12
 copyBtn.Parent = mainFrame
 
-local autoEndActive = false
+local changes = {}
+local waveSourceElement = nil
 local currentWave = 0
-local waveHistory = {}
-local raidStopRemote = nil
 
-local function findRaidStop()
-    local events = ReplicatedStorage:FindFirstChild("Events")
-    if events then
-        local remotes = events:FindFirstChild("Remotes")
-        if remotes then
-            raidStopRemote = remotes:FindFirstChild("RaidStop")
-        end
+local function addToLog(text, color)
+    color = color or Color3.new(200, 200, 200)
+    local time = os.date("%H:%M:%S")
+    local logText = "[" .. time .. "] " .. text
+    
+    table.insert(changes, 1, {text = logText, color = color})
+    if #changes > 100 then table.remove(changes) end
+    
+    -- Update UI
+    for _, child in ipairs(logContent:GetChildren()) do
+        child:Destroy()
     end
+    
+    for i = #changes, 1, -1 do
+        local log = changes[i]
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(1, -10, 0, 18)
+        label.Text = log.text
+        label.TextColor3 = log.color
+        label.BackgroundTransparency = 1
+        label.TextSize = 10
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.Parent = logContent
+    end
+    
+    task.wait()
+    logScroll.CanvasPosition = Vector2.new(0, 0)
+    logScroll.CanvasSize = UDim2.new(0, 0, 0, #changes * 20)
 end
 
-local function endRaid()
-    if raidStopRemote then
-        pcall(function()
-            raidStopRemote:FireServer()
-            statusLabel.Text = "Raid Ended at wave " .. currentWave
+-- MONITOR ALL TEXT CHANGES IN REAL TIME
+local function monitorAllTextChanges()
+    local playerGui = player:FindFirstChild("PlayerGui")
+    if not playerGui then 
+        addToLog("PlayerGui not found!", Color3.new(255, 0, 0))
+        return 
+    end
+    
+    addToLog("=== MONITORING ALL UI TEXT CHANGES ===", Color3.new(255, 255, 0))
+    addToLog("Start a raid and watch for wave number changes!", Color3.new(0, 255, 0))
+    
+    local originalTexts = {}
+    
+    local function hookTextLabel(label)
+        if originalTexts[label] then return end
+        originalTexts[label] = label.Text
+        
+        -- Store old index
+        local oldIndex = label.Changed
+        label.Changed:Connect(function(property)
+            if property == "Text" then
+                local oldText = originalTexts[label]
+                local newText = label.Text
+                
+                if oldText ~= newText then
+                    originalTexts[label] = newText
+                    
+                    -- Check if this change contains a wave-like number
+                    local numbers = {}
+                    for num in string.gmatch(newText, "(%d+)") do
+                        local n = tonumber(num)
+                        if n and n > 0 and n < 600 then
+                            table.insert(numbers, n)
+                        end
+                    end
+                    
+                    if #numbers > 0 then
+                        -- This text change contains numbers
+                        local info = string.format("UI Changed: [%s] '%s' -> '%s' | Numbers: %s", 
+                            label.Name, 
+                            oldText:sub(1, 30), 
+                            newText:sub(1, 30),
+                            table.concat(numbers, ", "))
+                        
+                        addToLog(info, Color3.new(100, 255, 100))
+                        
+                        -- Check if this looks like a wave display (2-3 digit number, no extra text)
+                        local cleanNumber = newText:match("^(%d%d?%d?)$")
+                        if cleanNumber then
+                            local waveNum = tonumber(cleanNumber)
+                            if waveNum and waveNum > 0 and waveNum < 600 then
+                                addToLog("!!! POTENTIAL WAVE DISPLAY FOUND !!!", Color3.new(255, 200, 0))
+                                addToLog("Element Name: " .. label.Name, Color3.new(255, 200, 0))
+                                addToLog("Element Path: " .. label:GetFullName(), Color3.new(255, 200, 0))
+                                addToLog("Wave Value: " .. waveNum, Color3.new(255, 200, 0))
+                                
+                                waveSourceElement = label
+                                targetElementDisplay.Text = "Wave Source: " .. label.Name .. " (" .. label:GetFullName() .. ")"
+                                targetElementDisplay.TextColor3 = Color3.new(0, 255, 0)
+                                currentWave = waveNum
+                                currentWaveDisplay.Text = "Current Detected Wave: " .. waveNum
+                            end
+                        end
+                        
+                        -- Also check for "Wave X" pattern
+                        if string.find(string.lower(newText), "wave") or string.find(string.lower(newText), "round") then
+                            for _, num in ipairs(numbers) do
+                                if num > 0 and num < 600 then
+                                    addToLog("!!! WAVE PATTERN DETECTED: " .. label.Name .. " = " .. newText, Color3.new(255, 200, 0))
+                                    if not waveSourceElement then
+                                        waveSourceElement = label
+                                        targetElementDisplay.Text = "Wave Source (candidate): " .. label.Name
+                                    end
+                                    currentWave = num
+                                    currentWaveDisplay.Text = "Current Detected Wave: " .. num
+                                end
+                            end
+                        end
+                    else
+                        -- Log other changes for debugging
+                        if string.len(newText) < 50 then
+                            addToLog(string.format("UI Changed: [%s] '%s' -> '%s'", 
+                                label.Name, oldText:sub(1, 20), newText:sub(1, 20)), Color3.new(150, 150, 150))
+                        end
+                    end
+                end
+            end
         end)
     end
-end
-
--- Get current wave from StatValue but filter out "You reached" messages
-local function getCurrentWave()
-    local playerGui = player:FindFirstChild("PlayerGui")
-    if not playerGui then return nil end
     
-    local highestWave = 0
-    local currentTime = os.time()
-    
-    local function searchStatValue(instance)
-        if instance:IsA("TextLabel") and instance.Name == "StatValue" then
-            local text = instance.Text or ""
-            -- Skip messages that say "You reached Wave X" (these are old records)
-            if string.find(text, "You reached") then
-                return nil
-            end
-            -- Look for a plain number that could be current wave
-            local num = text:match("^(%d+)$")
-            if num then
-                return tonumber(num)
-            end
-            -- Also check for numbers near the beginning of text
-            local num2 = text:match("^(%d+)")
-            if num2 and not string.find(text, "You reached") then
-                return tonumber(num2)
-            end
+    local function scanForTextLabels(instance)
+        if instance:IsA("TextLabel") or instance:IsA("TextButton") then
+            hookTextLabel(instance)
         end
-        
         for _, child in pairs(instance:GetChildren()) do
-            local result = searchStatValue(child)
-            if result then return result end
+            scanForTextLabels(child)
         end
-        return nil
     end
     
-    -- Also search for any TextLabel that contains just a number (2-3 digits)
-    local function searchNumberOnly(instance)
-        if instance:IsA("TextLabel") then
-            local text = instance.Text or ""
-            -- Look for a label that is JUST a number (no extra text)
-            local num = text:match("^(%d%d?%d?)$")
-            if num then
-                local waveNum = tonumber(num)
-                if waveNum and waveNum > 0 and waveNum < 500 then
-                    return waveNum
-                end
-            end
-        end
-        
-        for _, child in pairs(instance:GetChildren()) do
-            local result = searchNumberOnly(child)
-            if result then return result end
-        end
-        return nil
-    end
-    
-    -- Try StatValue first (but not the "You reached" ones)
-    local wave = searchStatValue(playerGui)
-    if wave then return wave end
-    
-    -- Try number-only labels
-    wave = searchNumberOnly(playerGui)
-    if wave then return wave end
-    
-    return nil
+    scanForTextLabels(playerGui)
+    addToLog("Monitoring " .. #originalTexts .. " UI elements", Color3.new(0, 255, 0))
 end
 
--- Continuous monitoring
-spawn(function()
-    findRaidStop()
-    
-    while true do
-        local wave = getCurrentWave()
-        
-        if wave and wave > 0 and wave ~= currentWave then
-            currentWave = wave
-            waveDisplay.Text = "WAVE: " .. wave
-            
-            table.insert(waveHistory, 1, {
-                wave = wave,
-                time = os.date("%H:%M:%S")
-            })
-            if #waveHistory > 30 then table.remove(waveHistory) end
-            
-            if wave >= 408 then
-                waveDisplay.TextColor3 = Color3.new(255, 0, 0)
-                statusLabel.Text = "TARGET REACHED: Wave " .. wave
+-- Also monitor RemoteEvents for wave-related signals
+local function monitorRemoteEvents()
+    local function hookRemote(remote)
+        if remote:IsA("RemoteEvent") then
+            local oldFunc = remote.OnClientEvent
+            remote.OnClientEvent = function(...)
+                local args = {...}
+                local argsStr = ""
+                local hasWaveNumber = false
                 
-                if autoEndActive then
-                    endRaid()
-                    autoEndActive = false
-                    autoEndBtn.Text = "AUTO END (408): OFF"
-                    autoEndBtn.BackgroundColor3 = Color3.new(100, 0, 0)
-                    statusLabel.Text = "Auto-ended at wave " .. wave
+                for i, arg in ipairs(args) do
+                    if type(arg) == "number" and arg > 0 and arg < 600 then
+                        hasWaveNumber = true
+                        argsStr = argsStr .. tostring(arg) .. " "
+                    elseif type(arg) == "string" and (string.find(string.lower(arg), "wave") or string.find(string.lower(arg), "round")) then
+                        hasWaveNumber = true
+                        argsStr = argsStr .. "'" .. arg .. "' "
+                    end
                 end
-            else
-                waveDisplay.TextColor3 = Color3.new(0, 255, 0)
-                statusLabel.Text = "Current Wave: " .. wave
+                
+                if hasWaveNumber then
+                    addToLog(string.format("REMOTE EVENT: %s fired with wave data: %s", remote.Name, argsStr), Color3.new(255, 150, 0))
+                end
+                
+                if oldFunc then oldFunc(...) end
             end
         end
-        
-        wait(0.3)
     end
-end)
-
-autoEndBtn.MouseButton1Click:Connect(function()
-    autoEndActive = not autoEndActive
-    if autoEndActive then
-        autoEndBtn.Text = "AUTO END (408): ON"
-        autoEndBtn.BackgroundColor3 = Color3.new(0, 100, 0)
-        statusLabel.Text = "Auto-end ON - will end at wave 408"
-    else
-        autoEndBtn.Text = "AUTO END (408): OFF"
-        autoEndBtn.BackgroundColor3 = Color3.new(100, 0, 0)
-        statusLabel.Text = "Auto-end OFF"
+    
+    local function scanForRemotes(instance)
+        hookRemote(instance)
+        for _, child in pairs(instance:GetChildren()) do
+            scanForRemotes(child)
+        end
     end
-end)
+    
+    scanForRemotes(ReplicatedStorage)
+    addToLog("Monitoring RemoteEvents for wave signals", Color3.new(0, 255, 0))
+end
 
-endNowBtn.MouseButton1Click:Connect(function()
-    endRaid()
-end)
+-- Start monitoring
+monitorAllTextChanges()
+monitorRemoteEvents()
 
 copyBtn.MouseButton1Click:Connect(function()
-    local data = "WAVE HISTORY\n"
+    local data = "UI CHANGE DETECTOR LOGS\n"
     data = data .. "Time: " .. os.date("%Y-%m-%d %H:%M:%S") .. "\n"
+    data = data .. "Detected Wave Source: " .. (waveSourceElement and waveSourceElement.Name or "Not found") .. "\n"
     data = data .. "Current Wave: " .. currentWave .. "\n"
-    data = data .. "--------------------\n"
-    for i, w in ipairs(waveHistory) do
-        data = data .. "[" .. w.time .. "] Wave: " .. w.wave .. "\n"
+    data = data .. "--------------------\n\n"
+    
+    for i = #changes, 1, -1 do
+        data = data .. changes[i].text .. "\n"
     end
+    
     pcall(function()
         setclipboard(data)
-        statusLabel.Text = "Copied!"
-        task.wait(1.5)
-        if currentWave > 0 then
-            statusLabel.Text = "Current Wave: " .. currentWave
-        else
-            statusLabel.Text = "Ready"
-        end
+        addToLog("Copied to clipboard!", Color3.new(0, 255, 0))
     end)
 end)
 
+-- Make draggable
 local dragStart, dragPos
 mainFrame.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch then
@@ -244,5 +284,9 @@ game:GetService("UserInputService").TouchMoved:Connect(function(input)
                                         dragPos.Y.Scale, dragPos.Y.Offset + delta.Y)
     end
 end)
+
+addToLog("UI CHANGE DETECTOR ACTIVE", Color3.new(0, 255, 0))
+addToLog("Start a raid - the script will track EVERY UI change", Color3.new(255, 255, 0))
+addToLog("When wave changes, it will show which UI element updated", Color3.new(255, 255, 0))
 
 end)
