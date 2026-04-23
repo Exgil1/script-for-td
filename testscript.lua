@@ -1,360 +1,419 @@
---// WAVE DETECTION & AUTO-END SCRIPT
+--// WAVE DETECTION INVESTIGATION SCRIPT
+-- Run this to find all possible wave detection methods
+
 pcall(function()
+
+print("=" .. string.rep("=", 50))
+print("WAVE DETECTION INVESTIGATION - SCANNING FOR TRIGGERS")
+print("=" .. string.rep("=", 50))
 
 --// SERVICES
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local CollectionService = game:GetService("CollectionService")
 local player = Players.LocalPlayer
 
---// REMOTES
-local events = ReplicatedStorage:WaitForChild("Events")
-local remotesFolder = events:WaitForChild("Remotes")
-local raidStop = remotesFolder:WaitForChild("RaidStop")
+--// STORAGE FOR FOUND TRIGGERS
+local waveTriggers = {
+    remotes = {},
+    events = {},
+    values = {},
+    attributes = {},
+    bindables = {},
+    remoteEvents = {},
+    remoteFunctions = {}
+}
 
---// WAVE DETECTION VARIABLES
+--// FUNCTION TO SEARCH INSTANCE TREE
+local function searchInstance(instance, depth)
+    if depth > 15 then return end
+    
+    -- Look for wave-related names
+    local nameLower = string.lower(instance.Name or "")
+    if nameLower:match("wave") or nameLower:match("round") or nameLower:match("enemy") or nameLower:match("spawn") then
+        local info = {
+            name = instance.Name,
+            className = instance.ClassName,
+            path = instance:GetFullName(),
+            parent = instance.Parent and instance.Parent.Name or "nil"
+        }
+        
+        if instance:IsA("RemoteEvent") then
+            table.insert(waveTriggers.remoteEvents, info)
+        elseif instance:IsA("RemoteFunction") then
+            table.insert(waveTriggers.remoteFunctions, info)
+        elseif instance:IsA("BindableEvent") then
+            table.insert(waveTriggers.bindables, info)
+        elseif instance:IsA("IntValue") or instance:IsA("NumberValue") then
+            table.insert(waveTriggers.values, info)
+            -- Try to get current value
+            info.currentValue = instance.Value
+        elseif instance:IsA("StringValue") then
+            table.insert(waveTriggers.values, info)
+            info.currentValue = instance.Value
+        elseif instance:IsA("BoolValue") then
+            table.insert(waveTriggers.values, info)
+            info.currentValue = instance.Value
+        end
+    end
+    
+    for _, child in ipairs(instance:GetChildren()) do
+        searchInstance(child, depth + 1)
+    end
+end
+
+--// SEARCH PLAYER OBJECTS
+print("\n[1] Searching Player objects...")
+searchInstance(player, 0)
+
+-- Check player flags
+local playerFlags = player:FindFirstChild("Flags")
+if playerFlags then
+    print("\n[Player Flags Found]")
+    for _, flag in ipairs(playerFlags:GetChildren()) do
+        if flag:IsA("BoolValue") or flag:IsA("IntValue") or flag:IsA("NumberValue") then
+            print("  - " .. flag.Name .. " = " .. tostring(flag.Value))
+            if string.lower(flag.Name):match("wave") or string.lower(flag.Name):match("round") then
+                print("    ⭐ POTENTIAL WAVE TRIGGER!")
+                table.insert(waveTriggers.values, {
+                    name = flag.Name,
+                    className = flag.ClassName,
+                    path = flag:GetFullName(),
+                    currentValue = flag.Value
+                })
+            end
+        end
+    end
+end
+
+-- Check player leaderstats
+local leaderstats = player:FindFirstChild("leaderstats")
+if leaderstats then
+    print("\n[Leaderstats Found]")
+    for _, stat in ipairs(leaderstats:GetChildren()) do
+        if stat:IsA("IntValue") or stat:IsA("NumberValue") then
+            print("  - " .. stat.Name .. " = " .. tostring(stat.Value))
+            if string.lower(stat.Name):match("wave") or string.lower(stat.Name):match("round") then
+                print("    ⭐ POTENTIAL WAVE TRIGGER!")
+                table.insert(waveTriggers.values, {
+                    name = stat.Name,
+                    className = stat.ClassName,
+                    path = stat:GetFullName(),
+                    currentValue = stat.Value
+                })
+            end
+        end
+    end
+end
+
+--// SEARCH REPLICATEDSTORAGE
+print("\n[2] Searching ReplicatedStorage...")
+local remoteEvents = ReplicatedStorage:FindFirstChild("Events")
+if remoteEvents then
+    searchInstance(remoteEvents, 0)
+    
+    -- Check specific folders
+    local remotes = remoteEvents:FindFirstChild("Remotes")
+    if remotes then
+        print("\n[Remotes Folder Found]")
+        for _, remote in ipairs(remotes:GetChildren()) do
+            if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
+                print("  - " .. remote.Name .. " (" .. remote.ClassName .. ")")
+                if string.lower(remote.Name):match("wave") or string.lower(remote.Name):match("round") or 
+                   string.lower(remote.Name):match("next") or string.lower(remote.Name):match("start") then
+                    print("    ⭐ POTENTIAL WAVE REMOTE!")
+                    table.insert(waveTriggers.remotes, {
+                        name = remote.Name,
+                        className = remote.ClassName,
+                        path = remote:GetFullName()
+                    })
+                end
+            end
+        end
+    end
+    
+    -- Check functions folder
+    local functions = remoteEvents:FindFirstChild("Functions")
+    if functions then
+        print("\n[Functions Folder Found]")
+        for _, func in ipairs(functions:GetChildren()) do
+            if func:IsA("RemoteFunction") then
+                print("  - " .. func.Name)
+                if string.lower(func.Name):match("wave") or string.lower(func.Name):match("round") then
+                    print("    ⭐ POTENTIAL WAVE FUNCTION!")
+                    table.insert(waveTriggers.remoteFunctions, {
+                        name = func.Name,
+                        className = func.ClassName,
+                        path = func:GetFullName()
+                    })
+                end
+            end
+        end
+    end
+end
+
+--// SEARCH WORKSPACE FOR ENEMY/SPAWN SIGNALS
+print("\n[3] Searching Workspace for enemy/wave signals...")
+local function searchWorkspace(instance, depth)
+    if depth > 8 then return end
+    
+    local nameLower = string.lower(instance.Name or "")
+    if nameLower:match("enemy") or nameLower:match("spawn") or nameLower:match("wave") or 
+       nameLower:match("mob") or nameLower:match("creep") or nameLower:match("zombie") then
+        
+        print("  Found: " .. instance.Name .. " (" .. instance.ClassName .. ") at " .. instance:GetFullName())
+        
+        -- Check for attributes
+        local attrs = instance:GetAttributes()
+        if next(attrs) then
+            print("    Attributes:")
+            for k, v in pairs(attrs) do
+                print("      " .. k .. " = " .. tostring(v))
+            end
+        end
+        
+        -- Check for value objects
+        for _, child in ipairs(instance:GetChildren()) do
+            if child:IsA("IntValue") or child:IsA("NumberValue") or child:IsA("StringValue") then
+                print("    Child Value: " .. child.Name .. " = " .. tostring(child.Value))
+            end
+        end
+    end
+    
+    for _, child in ipairs(instance:GetChildren()) do
+        searchWorkspace(child, depth + 1)
+    end
+end
+
+searchWorkspace(workspace, 0)
+
+--// LISTEN FOR SIGNALS
+print("\n[4] Setting up signal listeners...")
+
+-- Listen for remote events
+local function setupRemoteListener(remote)
+    if remote:IsA("RemoteEvent") then
+        local oldFunc
+        oldFunc = remote.OnClientEvent
+        remote.OnClientEvent = function(...)
+            local args = {...}
+            print("[REMOTE EVENT TRIGGERED] " .. remote.Name)
+            print("  Args:", args)
+            if string.lower(remote.Name):match("wave") or string.lower(remote.Name):match("round") then
+                print("  ⭐ THIS MIGHT BE A WAVE EVENT!")
+                print("  Full args:", args)
+            end
+            if oldFunc then oldFunc(...) end
+        end
+    end
+end
+
+-- Find all remote events in ReplicatedStorage
+local function findAllRemotes(instance)
+    for _, child in ipairs(instance:GetChildren()) do
+        if child:IsA("RemoteEvent") then
+            setupRemoteListener(child)
+            print("  Listening to: " .. child.Name)
+        end
+        findAllRemotes(child)
+    end
+end
+
+findAllRemotes(ReplicatedStorage)
+
+--// CHECK FOR WAVE NUMBER IN UI (MOST RELIABLE METHOD)
+print("\n[5] Scanning UI for wave display...")
+
+local function findWaveInGUI(gui)
+    local waveTexts = {}
+    
+    local function searchGUI(instance)
+        if instance:IsA("TextLabel") or instance:IsA("TextButton") then
+            local text = instance.Text or ""
+            local lowerText = string.lower(text)
+            
+            -- Check for wave patterns
+            if lowerText:match("wave") or lowerText:match("round") or lowerText:match("w%d+") then
+                local waveNum = text:match("(%d+)")
+                table.insert(waveTexts, {
+                    instance = instance,
+                    text = text,
+                    waveNum = waveNum,
+                    path = instance:GetFullName()
+                })
+                print("  Found potential wave display:")
+                print("    Text: " .. text)
+                print("    Path: " .. instance:GetFullName())
+                print("    Wave Number: " .. (waveNum or "unknown"))
+            end
+        end
+        
+        for _, child in ipairs(instance:GetChildren()) do
+            searchGUI(child)
+        end
+    end
+    
+    if gui then
+        searchGUI(gui)
+    end
+    return waveTexts
+end
+
+-- Check PlayerGui
+local playerGui = player:FindFirstChild("PlayerGui")
+if playerGui then
+    print("\n[PlayerGui]")
+    local waveDisplays = findWaveInGUI(playerGui)
+    if #waveDisplays > 0 then
+        print("\n⭐ BEST CANDIDATES FOR WAVE DETECTION:")
+        for i, display in ipairs(waveDisplays) do
+            print(string.format("  %d. %s - Wave: %s", i, display.path, display.waveNum or "???"))
+        end
+    end
+end
+
+-- Check CoreGui
+local coreGui = game:GetService("CoreGui")
+if coreGui then
+    print("\n[CoreGui]")
+    local waveDisplays = findWaveInGUI(coreGui)
+    if #waveDisplays > 0 then
+        for i, display in ipairs(waveDisplays) do
+            print(string.format("  %d. %s - Wave: %s", i, display.path, display.waveNum or "???"))
+        end
+    end
+end
+
+--// CREATE LIVE WAVE MONITOR (BEST WORKING METHOD)
+print("\n[6] Creating live wave monitor using UI detection...")
+
+local waveMonitorActive = true
 local currentWave = 0
-local autoEndEnabled = false
-local autoEndThread = nil
-local targetWave = 408  -- Change this to whatever wave you want
-local waveCheckInterval = 0.5  -- Check every 0.5 seconds
+local waveMonitorFrame = nil
+local waveLabel = nil
 
---// FIND WAVE DISPLAY
-local function findWaveDisplay()
-    -- Try common wave display locations
-    local waveText = nil
-    
-    -- Check player's GUI
-    local playerGui = player:FindFirstChild("PlayerGui")
-    if playerGui then
-        -- Search for wave text in all GUI elements
-        local function searchForWave(instance)
-            if waveText then return end
-            if instance:IsA("TextLabel") or instance:IsA("TextButton") then
-                local text = instance.Text or ""
-                -- Check if text contains wave pattern
-                if text:match("Wave%s*(%d+)") or text:match("WAVE%s*(%d+)") or text:match("wave%s*(%d+)") then
-                    waveText = instance
-                    return
-                end
-            end
-            for _, child in ipairs(instance:GetChildren()) do
-                searchForWave(child)
-                if waveText then break end
-            end
-        end
-        searchForWave(playerGui)
-    end
-    
-    -- Check screen GUI
-    if not waveText then
-        local coreGui = game:GetService("CoreGui")
-        local function searchCoreGui(instance)
-            if waveText then return end
-            if instance:IsA("TextLabel") or instance:IsA("TextButton") then
-                local text = instance.Text or ""
-                if text:match("Wave%s*(%d+)") or text:match("WAVE%s*(%d+)") or text:match("wave%s*(%d+)") then
-                    waveText = instance
-                    return
-                end
-            end
-            for _, child in ipairs(instance:GetChildren()) do
-                searchCoreGui(child)
-                if waveText then break end
-            end
-        end
-        searchCoreGui(coreGui)
-    end
-    
-    return waveText
-end
+-- Create a small display
+local monitorGui = Instance.new("ScreenGui")
+monitorGui.Name = "WaveMonitor"
+monitorGui.ResetOnSpawn = false
+monitorGui.Parent = game:GetService("CoreGui")
 
---// GET CURRENT WAVE FROM TEXT
-local function getCurrentWave()
-    local waveDisplay = findWaveDisplay()
-    if waveDisplay then
-        local text = waveDisplay.Text
-        -- Try to extract wave number (supports various formats)
-        local waveNum = text:match("Wave%s*(%d+)") or 
-                       text:match("WAVE%s*(%d+)") or 
-                       text:match("wave%s*(%d+)") or
-                       text:match("(%d+)")
-        if waveNum then
-            return tonumber(waveNum)
-        end
-    end
-    return nil
-end
+local monitorFrame = Instance.new("Frame")
+monitorFrame.Size = UDim2.new(0, 250, 0, 100)
+monitorFrame.Position = UDim2.new(0, 10, 0, 100)
+monitorFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+monitorFrame.BorderSizePixel = 2
+monitorFrame.BorderColor3 = Color3.fromRGB(100, 200, 100)
+monitorFrame.BackgroundTransparency = 0.1
+monitorFrame.Parent = monitorGui
 
---// AUTO-END FUNCTION
-local function autoEndRaid()
-    print("[WaveDetect] Attempting to end raid at wave " .. currentWave)
-    pcall(function()
-        raidStop:FireServer()
-        print("[WaveDetect] Raid end command sent!")
-    end)
-end
+local monitorTitle = Instance.new("TextLabel")
+monitorTitle.Size = UDim2.new(1, 0, 0, 25)
+monitorTitle.Text = "🌊 WAVE MONITOR"
+monitorTitle.TextColor3 = Color3.new(1, 1, 1)
+monitorTitle.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+monitorTitle.Font = Enum.Font.GothamBold
+monitorTitle.TextSize = 12
+monitorTitle.Parent = monitorFrame
 
---// WAVE MONITOR LOOP
-local function startWaveMonitor()
-    if autoEndThread then 
-        task.cancel(autoEndThread)
-        autoEndThread = nil
-    end
-    
-    autoEndThread = task.spawn(function()
-        print("[WaveDetect] Wave monitor started - Target wave: " .. targetWave)
-        local lastWave = 0
+waveLabel = Instance.new("TextLabel")
+waveLabel.Size = UDim2.new(1, -10, 0, 40)
+waveLabel.Position = UDim2.new(0, 5, 0, 30)
+waveLabel.Text = "Current Wave: Detecting..."
+waveLabel.TextColor3 = Color3.new(0.3, 1, 0.3)
+waveLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+waveLabel.Font = Enum.Font.GothamBold
+waveLabel.TextSize = 14
+waveLabel.Parent = monitorFrame
+
+local detectedFrom = Instance.new("TextLabel")
+detectedFrom.Size = UDim2.new(1, -10, 0, 25)
+detectedFrom.Position = UDim2.new(0, 5, 0, 72)
+detectedFrom.Text = "Source: Scanning..."
+detectedFrom.TextColor3 = Color3.new(0.7, 0.7, 0.7)
+detectedFrom.BackgroundTransparency = 1
+detectedFrom.Font = Enum.Font.Gotham
+detectedFrom.TextSize = 9
+detectedFrom.Parent = monitorFrame
+
+-- Monitor function
+local lastWaveText = ""
+local lastWaveValue = 0
+
+task.spawn(function()
+    while waveMonitorActive do
+        -- Search for wave display every frame
+        local bestMatch = nil
+        local bestWave = nil
         
-        while autoEndEnabled do
-            local wave = getCurrentWave()
-            
-            if wave and wave ~= lastWave then
-                lastWave = wave
-                currentWave = wave
-                print("[WaveDetect] Current Wave: " .. wave)
-                
-                -- Update status display if available
-                if waveStatusLabel then
-                    waveStatusLabel.Text = "🌊 Current Wave: " .. wave .. " / " .. targetWave
-                    if wave >= targetWave then
-                        waveStatusLabel.TextColor3 = Color3.new(1, 0.3, 0.3)
-                    else
-                        waveStatusLabel.TextColor3 = Color3.new(0.3, 1, 0.3)
+        -- Check all text labels in PlayerGui
+        if playerGui then
+            local function findWave(instance)
+                if instance:IsA("TextLabel") or instance:IsA("TextButton") then
+                    local text = instance.Text or ""
+                    local waveNum = text:match("Wave%s*(%d+)") or 
+                                   text:match("WAVE%s*(%d+)") or 
+                                   text:match("wave%s*(%d+)") or
+                                   text:match("Round%s*(%d+)") or
+                                   text:match("ROUND%s*(%d+)")
+                    
+                    if waveNum then
+                        local num = tonumber(waveNum)
+                        if num and (not bestWave or num > bestWave) then
+                            bestWave = num
+                            bestMatch = instance
+                        end
                     end
                 end
                 
-                -- Check if reached target wave
-                if wave >= targetWave then
-                    print("[WaveDetect] Target wave " .. targetWave .. " reached! Auto-ending raid...")
-                    if waveStatusLabel then
-                        waveStatusLabel.Text = "✅ TARGET REACHED! Ending raid..."
-                    end
-                    autoEndRaid()
-                    autoEndEnabled = false  -- Stop monitoring after ending
-                    if autoEndButton then
-                        autoEndButton.Text = "🎯 AUTO-END: OFF"
-                        autoEndButton.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
-                    end
-                    break
+                for _, child in ipairs(instance:GetChildren()) do
+                    findWave(child)
                 end
             end
-            
-            task.wait(waveCheckInterval)
+            findWave(playerGui)
         end
         
-        print("[WaveDetect] Wave monitor stopped")
-        autoEndThread = nil
-    end)
-end
-
-local function stopWaveMonitor()
-    autoEndEnabled = false
-    if autoEndThread then
-        task.cancel(autoEndThread)
-        autoEndThread = nil
-    end
-    print("[WaveDetect] Wave monitor stopped")
-end
-
---// TOGGLE AUTO-END
-local function toggleAutoEnd()
-    if autoEndEnabled then
-        stopWaveMonitor()
-        if autoEndButton then
-            autoEndButton.Text = "🎯 AUTO-END: OFF"
-            autoEndButton.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
-        end
-        if waveStatusLabel then
-            waveStatusLabel.Text = "🌊 Monitor: Off"
-        end
-    else
-        autoEndEnabled = true
-        startWaveMonitor()
-        if autoEndButton then
-            autoEndButton.Text = "🎯 AUTO-END: ON (Wave " .. targetWave .. ")"
-            autoEndButton.BackgroundColor3 = Color3.fromRGB(50, 100, 50)
-        end
-        if waveStatusLabel then
-            local current = getCurrentWave() or 0
-            waveStatusLabel.Text = "🌊 Current Wave: " .. current .. " / " .. targetWave
-            waveStatusLabel.TextColor3 = Color3.new(0.3, 1, 0.3)
-        end
-    end
-end
-
---// CREATE GUI FOR WAVE DETECTION
-local gui = Instance.new("ScreenGui")
-gui.Name = "WaveAutoEnd"
-gui.ResetOnSpawn = false
-gui.Parent = game:GetService("CoreGui")
-
-local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 300, 0, 120)
-mainFrame.Position = UDim2.new(1, -320, 0, 50)
-mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
-mainFrame.BorderSizePixel = 2
-mainFrame.BorderColor3 = Color3.fromRGB(200, 100, 100)
-mainFrame.BackgroundTransparency = 0.1
-mainFrame.Parent = gui
-mainFrame.Active = true
-mainFrame.Draggable = true
-
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 30)
-title.Text = "🌊 WAVE AUTO-END"
-title.TextColor3 = Color3.new(1, 1, 1)
-title.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-title.Font = Enum.Font.GothamBold
-title.TextSize = 14
-title.Parent = mainFrame
-
-local waveStatusLabel = Instance.new("TextLabel")
-waveStatusLabel.Size = UDim2.new(1, -10, 0, 30)
-waveStatusLabel.Position = UDim2.new(0, 5, 0, 35)
-waveStatusLabel.Text = "🌊 Wave Monitor: Off"
-waveStatusLabel.TextColor3 = Color3.new(0.7, 0.7, 0.7)
-waveStatusLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-waveStatusLabel.Font = Enum.Font.Gotham
-waveStatusLabel.TextSize = 12
-waveStatusLabel.Parent = mainFrame
-
-local autoEndButton = Instance.new("TextButton")
-autoEndButton.Size = UDim2.new(1, -10, 0, 35)
-autoEndButton.Position = UDim2.new(0, 5, 0, 70)
-autoEndButton.Text = "🎯 AUTO-END: OFF"
-autoEndButton.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
-autoEndButton.TextColor3 = Color3.new(1, 1, 1)
-autoEndButton.Font = Enum.Font.GothamBold
-autoEndButton.TextSize = 12
-autoEndButton.Parent = mainFrame
-
-autoEndButton.MouseButton1Click:Connect(toggleAutoEnd)
-
--- Optional: Add wave number input
-local waveInputFrame = Instance.new("Frame")
-waveInputFrame.Size = UDim2.new(1, -10, 0, 30)
-waveInputFrame.Position = UDim2.new(0, 5, 0, 110)
-waveInputFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-waveInputFrame.BackgroundTransparency = 0.5
-waveInputFrame.Parent = mainFrame
-
-local waveLabel = Instance.new("TextLabel")
-waveLabel.Size = UDim2.new(0.4, -5, 1, 0)
-waveLabel.Text = "Target Wave:"
-waveLabel.TextColor3 = Color3.new(1, 1, 1)
-waveLabel.BackgroundTransparency = 1
-waveLabel.TextSize = 11
-waveLabel.Parent = waveInputFrame
-
-local waveInput = Instance.new("TextBox")
-waveInput.Size = UDim2.new(0.3, -5, 1, -5)
-waveInput.Position = UDim2.new(0.42, 0, 0, 2)
-waveInput.Text = tostring(targetWave)
-waveInput.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
-waveInput.TextColor3 = Color3.new(1, 1, 1)
-waveInput.TextSize = 11
-waveInput.Parent = waveInputFrame
-
-local setWaveBtn = Instance.new("TextButton")
-setWaveBtn.Size = UDim2.new(0.25, -5, 1, -5)
-setWaveBtn.Position = UDim2.new(0.74, 0, 0, 2)
-setWaveBtn.Text = "Set"
-setWaveBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
-setWaveBtn.TextColor3 = Color3.new(1, 1, 1)
-setWaveBtn.TextSize = 11
-setWaveBtn.Parent = waveInputFrame
-
-setWaveBtn.MouseButton1Click:Connect(function()
-    local newWave = tonumber(waveInput.Text)
-    if newWave and newWave > 0 then
-        targetWave = newWave
-        waveStatusLabel.Text = "🌊 Target set to wave " .. targetWave
-        task.wait(1.5)
-        if autoEndEnabled then
-            waveStatusLabel.Text = "🌊 Current Wave: " .. (getCurrentWave() or 0) .. " / " .. targetWave
+        if bestMatch and bestWave then
+            if bestWave ~= lastWaveValue then
+                currentWave = bestWave
+                lastWaveValue = bestWave
+                waveLabel.Text = "🌊 Current Wave: " .. currentWave
+                detectedFrom.Text = "Source: " .. bestMatch.Name:sub(1, 30)
+                print("[Wave] Current wave: " .. currentWave)
+                
+                -- Change color based on wave (optional)
+                if currentWave >= 408 then
+                    waveLabel.TextColor3 = Color3.new(1, 0.3, 0.3)
+                    waveLabel.Text = "⚠️ WAVE " .. currentWave .. " - TARGET REACHED! ⚠️"
+                else
+                    waveLabel.TextColor3 = Color3.new(0.3, 1, 0.3)
+                end
+            end
         else
-            waveStatusLabel.Text = "🌊 Wave Monitor: Off"
+            if waveLabel.Text ~= "Current Wave: ??? (No wave display found)" then
+                waveLabel.Text = "Current Wave: ??? (No wave display found)"
+                detectedFrom.Text = "Source: None detected"
+            end
         end
-        -- Update button text
-        if autoEndEnabled then
-            autoEndButton.Text = "🎯 AUTO-END: ON (Wave " .. targetWave .. ")"
-        end
-    else
-        waveStatusLabel.Text = "❌ Invalid wave number!"
-        task.wait(1.5)
-        waveInput.Text = tostring(targetWave)
-        if autoEndEnabled then
-            waveStatusLabel.Text = "🌊 Current Wave: " .. (getCurrentWave() or 0) .. " / " .. targetWave
-        else
-            waveStatusLabel.Text = "🌊 Wave Monitor: Off"
-        end
+        
+        task.wait(0.5)
     end
 end)
 
--- Manual end button
-local manualEndBtn = Instance.new("TextButton")
-manualEndBtn.Size = UDim2.new(0.48, -5, 0, 30)
-manualEndBtn.Position = UDim2.new(0.51, 0, 0, 145)
-manualEndBtn.Text = "⚡ END NOW"
-manualEndBtn.BackgroundColor3 = Color3.fromRGB(100, 50, 50)
-manualEndBtn.TextColor3 = Color3.new(1, 1, 1)
-manualEndBtn.Font = Enum.Font.GothamBold
-manualEndBtn.TextSize = 11
-manualEndBtn.Parent = mainFrame
-
-local refreshWaveBtn = Instance.new("TextButton")
-refreshWaveBtn.Size = UDim2.new(0.48, -5, 0, 30)
-refreshWaveBtn.Position = UDim2.new(0.01, 0, 0, 145)
-refreshWaveBtn.Text = "🔄 REFRESH WAVE"
-refreshWaveBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
-refreshWaveBtn.TextColor3 = Color3.new(1, 1, 1)
-refreshWaveBtn.Font = Enum.Font.GothamBold
-refreshWaveBtn.TextSize = 11
-refreshWaveBtn.Parent = mainFrame
-
-manualEndBtn.MouseButton1Click:Connect(function()
-    print("[WaveDetect] Manual end triggered")
-    pcall(function()
-        raidStop:FireServer()
-        waveStatusLabel.Text = "✅ Raid ended manually!"
-        task.wait(2)
-        if autoEndEnabled then
-            waveStatusLabel.Text = "🌊 Current Wave: " .. (getCurrentWave() or 0) .. " / " .. targetWave
-        else
-            waveStatusLabel.Text = "🌊 Wave Monitor: Off"
-        end
-    end)
-end)
-
-refreshWaveBtn.MouseButton1Click:Connect(function()
-    local wave = getCurrentWave()
-    if wave then
-        currentWave = wave
-        waveStatusLabel.Text = "🌊 Current Wave: " .. wave .. " / " .. targetWave
-        if autoEndEnabled then
-            waveStatusLabel.TextColor3 = wave >= targetWave and Color3.new(1, 0.3, 0.3) or Color3.new(0.3, 1, 0.3)
-        end
-    else
-        waveStatusLabel.Text = "❌ Could not detect wave!"
-        task.wait(1.5)
-        if autoEndEnabled then
-            waveStatusLabel.Text = "🌊 Current Wave: ? / " .. targetWave
-        else
-            waveStatusLabel.Text = "🌊 Wave Monitor: Off"
-        end
-    end
-end)
-
--- Resize main frame to fit all elements
-mainFrame.Size = UDim2.new(0, 300, 0, 185)
-
-print("=== WAVE DETECTION AUTO-END LOADED ===")
-print("✅ Detects current wave number from UI")
-print("✅ Auto-ends raid when wave " .. targetWave .. " is reached")
-print("✅ Can change target wave anytime")
-print("✅ Manual end button available")
-
--- Optional: Auto-start monitoring (uncomment if you want it on by default)
--- toggleAutoEnd()
+print("\n" .. "=" .. string.rep("=", 50))
+print("INVESTIGATION COMPLETE!")
+print("=" .. string.rep("=", 50))
+print("\n📊 SUMMARY:")
+print("  - Created live wave monitor window")
+print("  - Wave detection from UI is most reliable")
+print("  - Check output for remote events when wave changes")
+print("  - Monitor window shows current wave in real-time")
+print("\n💡 TIPS:")
+print("  1. Wait for a raid/challenge to start to see wave detection")
+print("  2. Watch the output for any wave-related remote events")
+print("  3. The wave monitor window will show current wave")
+print("  4. When wave 408 is reached, the display will turn red")
+print("\n✅ Detection script is running. Keep this running while you play!")
 
 end)
