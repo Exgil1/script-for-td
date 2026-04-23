@@ -13,9 +13,9 @@ local mainFrame = Instance.new("Frame")
 mainFrame.Size = UDim2.new(0, 400, 0, 500)
 mainFrame.Position = UDim2.new(0.5, -200, 0.5, -250)
 mainFrame.BackgroundColor3 = Color3.new(0, 0, 0)
-mainFrame.BackgroundTransparency = 0
-mainFrame.BorderSizePixel = 3
-mainFrame.BorderColor3 = Color3.new(255, 0, 0)
+mainFrame.BackgroundTransparency = 0.2
+mainFrame.BorderSizePixel = 2
+mainFrame.BorderColor3 = Color3.new(255, 100, 0)
 mainFrame.Parent = screenGui
 
 local title = Instance.new("TextLabel")
@@ -30,7 +30,7 @@ title.Parent = mainFrame
 local waveBox = Instance.new("Frame")
 waveBox.Size = UDim2.new(1, -20, 0, 80)
 waveBox.Position = UDim2.new(0, 10, 0, 50)
-waveBox.BackgroundColor3 = Color3.new(40, 40, 40)
+waveBox.BackgroundColor3 = Color3.new(30, 30, 30)
 waveBox.Parent = mainFrame
 
 local waveLabel = Instance.new("TextLabel")
@@ -48,8 +48,8 @@ waveSourceLabel.Size = UDim2.new(1, 0, 0, 20)
 waveSourceLabel.Position = UDim2.new(0, 0, 0, 60)
 waveSourceLabel.Text = "Source: Unknown"
 waveSourceLabel.TextColor3 = Color3.new(200, 200, 200)
-waveSourceLabel.BackgroundTransparency = 1
 waveSourceLabel.TextSize = 10
+waveSourceLabel.BackgroundTransparency = 1
 waveSourceLabel.Parent = waveBox
 
 local remoteLabel = Instance.new("TextLabel")
@@ -57,16 +57,16 @@ remoteLabel.Size = UDim2.new(1, -20, 0, 25)
 remoteLabel.Position = UDim2.new(0, 10, 0, 140)
 remoteLabel.Text = "DETECTED REMOTE EVENTS:"
 remoteLabel.TextColor3 = Color3.new(255, 255, 0)
-remoteLabel.BackgroundColor3 = Color3.new(50, 50, 50)
+remoteLabel.BackgroundColor3 = Color3.new(30, 30, 30)
 remoteLabel.TextSize = 11
 remoteLabel.Parent = mainFrame
 
 local remoteScroll = Instance.new("ScrollingFrame")
 remoteScroll.Size = UDim2.new(1, -20, 0, 200)
 remoteScroll.Position = UDim2.new(0, 10, 0, 170)
-remoteScroll.BackgroundColor3 = Color3.new(30, 30, 30)
+remoteScroll.BackgroundColor3 = Color3.new(20, 20, 20)
 remoteScroll.BorderSizePixel = 1
-remoteScroll.BorderColor3 = Color3.new(255, 255, 255)
+remoteScroll.BorderColor3 = Color3.new(100, 100, 100)
 remoteScroll.Parent = mainFrame
 
 local remoteList = Instance.new("UIListLayout")
@@ -82,7 +82,7 @@ local copyBtn = Instance.new("TextButton")
 copyBtn.Size = UDim2.new(0.48, -5, 0, 40)
 copyBtn.Position = UDim2.new(0, 10, 0, 380)
 copyBtn.Text = "COPY DATA"
-copyBtn.BackgroundColor3 = Color3.new(0, 0, 200)
+copyBtn.BackgroundColor3 = Color3.new(0, 100, 200)
 copyBtn.TextColor3 = Color3.new(255, 255, 255)
 copyBtn.TextSize = 12
 copyBtn.Parent = mainFrame
@@ -91,7 +91,7 @@ local clearBtn = Instance.new("TextButton")
 clearBtn.Size = UDim2.new(0.48, -5, 0, 40)
 clearBtn.Position = UDim2.new(0.52, 0, 0, 380)
 clearBtn.Text = "CLEAR"
-clearBtn.BackgroundColor3 = Color3.new(200, 100, 0)
+clearBtn.BackgroundColor3 = Color3.new(200, 100, 50)
 clearBtn.TextColor3 = Color3.new(255, 255, 255)
 clearBtn.TextSize = 12
 clearBtn.Parent = mainFrame
@@ -100,7 +100,7 @@ local testEndBtn = Instance.new("TextButton")
 testEndBtn.Size = UDim2.new(0.48, -5, 0, 40)
 testEndBtn.Position = UDim2.new(0, 10, 0, 430)
 testEndBtn.Text = "TEST END RAID"
-testEndBtn.BackgroundColor3 = Color3.new(200, 0, 0)
+testEndBtn.BackgroundColor3 = Color3.new(200, 50, 50)
 testEndBtn.TextColor3 = Color3.new(255, 255, 255)
 testEndBtn.TextSize = 12
 testEndBtn.Parent = mainFrame
@@ -109,7 +109,7 @@ local closeBtn = Instance.new("TextButton")
 closeBtn.Size = UDim2.new(0.48, -5, 0, 40)
 closeBtn.Position = UDim2.new(0.52, 0, 0, 430)
 closeBtn.Text = "CLOSE"
-closeBtn.BackgroundColor3 = Color3.new(100, 0, 100)
+closeBtn.BackgroundColor3 = Color3.new(100, 50, 100)
 closeBtn.TextColor3 = Color3.new(255, 255, 255)
 closeBtn.TextSize = 12
 closeBtn.Parent = mainFrame
@@ -129,7 +129,7 @@ local function addRemoteLog(remoteName, args)
         if type(arg) == "number" then
             argsStr = argsStr .. tostring(arg)
         elseif type(arg) == "string" then
-            argsStr = argsStr .. arg
+            argsStr = argsStr .. "'" .. tostring(arg) .. "'"
         else
             argsStr = argsStr .. type(arg)
         end
@@ -155,7 +155,11 @@ local function addRemoteLog(remoteName, args)
         local label = Instance.new("TextLabel")
         label.Size = UDim2.new(1, -10, 0, 18)
         label.Text = ev.text
-        label.TextColor3 = Color3.new(255, 255, 255)
+        if string.find(string.lower(ev.text), "wave") or string.find(string.lower(ev.text), "round") then
+            label.TextColor3 = Color3.new(255, 200, 0)
+        else
+            label.TextColor3 = Color3.new(150, 150, 150)
+        end
         label.BackgroundTransparency = 1
         label.TextSize = 10
         label.TextXAlignment = Enum.TextXAlignment.Left
