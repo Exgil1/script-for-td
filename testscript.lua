@@ -1,4 +1,4 @@
---// COMPLETE UI & EVENT MONITOR - FINDS WAVE TRIGGERS
+--// COMPLETE UI & EVENT MONITOR - FINDS WAVE TRIGGERS (NO METATABLE VERSION)
 pcall(function()
 
 --// SERVICES
@@ -16,8 +16,8 @@ gui.Parent = game:GetService("CoreGui")
 
 -- Main Frame
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 600, 0, 700)
-mainFrame.Position = UDim2.new(0.5, -300, 0.5, -350)
+mainFrame.Size = UDim2.new(0, 650, 0, 750)
+mainFrame.Position = UDim2.new(0.5, -325, 0.5, -375)
 mainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 20)
 mainFrame.BorderSizePixel = 2
 mainFrame.BorderColor3 = Color3.fromRGB(200, 100, 100)
@@ -54,7 +54,7 @@ btnFrame.BackgroundTransparency = 1
 btnFrame.Parent = mainFrame
 
 local pauseBtn = Instance.new("TextButton")
-pauseBtn.Size = UDim2.new(0.23, -5, 1, 0)
+pauseBtn.Size = UDim2.new(0.18, -5, 1, 0)
 pauseBtn.Text = "⏸️ PAUSE"
 pauseBtn.BackgroundColor3 = Color3.fromRGB(100, 50, 50)
 pauseBtn.TextColor3 = Color3.new(1, 1, 1)
@@ -63,9 +63,9 @@ pauseBtn.TextSize = 11
 pauseBtn.Parent = btnFrame
 
 local copyBtn = Instance.new("TextButton")
-copyBtn.Size = UDim2.new(0.23, -5, 1, 0)
-copyBtn.Position = UDim2.new(0.24, 0, 0, 0)
-copyBtn.Text = "📋 COPY ALL"
+copyBtn.Size = UDim2.new(0.18, -5, 1, 0)
+copyBtn.Position = UDim2.new(0.19, 0, 0, 0)
+copyBtn.Text = "📋 COPY"
 copyBtn.BackgroundColor3 = Color3.fromRGB(50, 100, 200)
 copyBtn.TextColor3 = Color3.new(1, 1, 1)
 copyBtn.Font = Enum.Font.GothamBold
@@ -73,8 +73,8 @@ copyBtn.TextSize = 11
 copyBtn.Parent = btnFrame
 
 local clearBtn = Instance.new("TextButton")
-clearBtn.Size = UDim2.new(0.23, -5, 1, 0)
-clearBtn.Position = UDim2.new(0.48, 0, 0, 0)
+clearBtn.Size = UDim2.new(0.18, -5, 1, 0)
+clearBtn.Position = UDim2.new(0.38, 0, 0, 0)
 clearBtn.Text = "🗑️ CLEAR"
 clearBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 50)
 clearBtn.TextColor3 = Color3.new(1, 1, 1)
@@ -83,18 +83,28 @@ clearBtn.TextSize = 11
 clearBtn.Parent = btnFrame
 
 local detectBtn = Instance.new("TextButton")
-detectBtn.Size = UDim2.new(0.23, -5, 1, 0)
-detectBtn.Position = UDim2.new(0.72, 0, 0, 0)
-detectBtn.Text = "🎯 DETECT WAVE"
+detectBtn.Size = UDim2.new(0.18, -5, 1, 0)
+detectBtn.Position = UDim2.new(0.57, 0, 0, 0)
+detectBtn.Text = "🎯 SCAN UI"
 detectBtn.BackgroundColor3 = Color3.fromRGB(50, 100, 50)
 detectBtn.TextColor3 = Color3.new(1, 1, 1)
 detectBtn.Font = Enum.Font.GothamBold
 detectBtn.TextSize = 11
 detectBtn.Parent = btnFrame
 
+local scanRemotesBtn = Instance.new("TextButton")
+scanRemotesBtn.Size = UDim2.new(0.22, -5, 1, 0)
+scanRemotesBtn.Position = UDim2.new(0.76, 0, 0, 0)
+scanRemotesBtn.Text = "🔍 SCAN REMOTES"
+scanRemotesBtn.BackgroundColor3 = Color3.fromRGB(100, 50, 100)
+scanRemotesBtn.TextColor3 = Color3.new(1, 1, 1)
+scanRemotesBtn.Font = Enum.Font.GothamBold
+scanRemotesBtn.TextSize = 10
+scanRemotesBtn.Parent = btnFrame
+
 -- Live Wave Display
 local waveDisplayFrame = Instance.new("Frame")
-waveDisplayFrame.Size = UDim2.new(1, -10, 0, 60)
+waveDisplayFrame.Size = UDim2.new(1, -10, 0, 70)
 waveDisplayFrame.Position = UDim2.new(0, 5, 0, 120)
 waveDisplayFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 35)
 waveDisplayFrame.BorderSizePixel = 1
@@ -102,7 +112,7 @@ waveDisplayFrame.BorderColor3 = Color3.fromRGB(100, 200, 100)
 waveDisplayFrame.Parent = mainFrame
 
 local liveWaveLabel = Instance.new("TextLabel")
-liveWaveLabel.Size = UDim2.new(1, -10, 0.5, 0)
+liveWaveLabel.Size = UDim2.new(1, -10, 0.6, 0)
 liveWaveLabel.Position = UDim2.new(0, 5, 0, 5)
 liveWaveLabel.Text = "🌊 Current Wave: Detecting..."
 liveWaveLabel.TextColor3 = Color3.new(0.3, 1, 0.3)
@@ -113,8 +123,8 @@ liveWaveLabel.TextXAlignment = Enum.TextXAlignment.Left
 liveWaveLabel.Parent = waveDisplayFrame
 
 local waveSourceLabel = Instance.new("TextLabel")
-waveSourceLabel.Size = UDim2.new(1, -10, 0.5, 0)
-waveSourceLabel.Position = UDim2.new(0, 5, 0, 35)
+waveSourceLabel.Size = UDim2.new(1, -10, 0.4, 0)
+waveSourceLabel.Position = UDim2.new(0, 5, 0, 45)
 waveSourceLabel.Text = "Source: None"
 waveSourceLabel.TextColor3 = Color3.new(0.7, 0.7, 0.7)
 waveSourceLabel.BackgroundTransparency = 1
@@ -125,8 +135,8 @@ waveSourceLabel.Parent = waveDisplayFrame
 
 -- Console Output
 local consoleScroll = Instance.new("ScrollingFrame")
-consoleScroll.Size = UDim2.new(1, -10, 0, 440)
-consoleScroll.Position = UDim2.new(0, 5, 0, 185)
+consoleScroll.Size = UDim2.new(1, -10, 0, 460)
+consoleScroll.Position = UDim2.new(0, 5, 0, 195)
 consoleScroll.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
 consoleScroll.BorderSizePixel = 1
 consoleScroll.BorderColor3 = Color3.fromRGB(60, 60, 90)
@@ -145,6 +155,8 @@ consoleContent.Parent = consoleScroll
 local eventLogs = {}
 local paused = false
 local filterText = ""
+local lastUIWave = 0
+local lastUIData = {}
 
 --// ADD LOG FUNCTION
 local function addLog(text, color, importance)
@@ -189,103 +201,105 @@ local function addLog(text, color, importance)
     consoleScroll.CanvasSize = UDim2.new(0, 0, 0, #eventLogs * 19)
 end
 
---// MONITOR ALL TEXT CHANGES IN UI
-local function monitorUITextChanges()
-    addLog("━━━ MONITORING UI TEXT CHANGES ━━━", Color3.new(1, 0.8, 0), true)
-    
-    local originalTexts = {}
-    
-    local function hookTextLabel(label)
-        if originalTexts[label] then return end
-        originalTexts[label] = label.Text
-        
-        local metatable = getrawmetatable(label)
-        if metatable then
-            local oldIndex = metatable.__index
-            metatable.__index = function(self, key)
-                if key == "Text" then
-                    return originalTexts[self]
-                end
-                return oldIndex(self, key)
-            end
-            
-            local newindex = metatable.__newindex
-            metatable.__newindex = function(self, key, value)
-                if key == "Text" and originalTexts[self] ~= value then
-                    local oldValue = originalTexts[self]
-                    originalTexts[self] = value
-                    
-                    -- Check if this looks like wave text
-                    local waveMatch = value:match("(%d+)")
-                    if waveMatch and (string.lower(value):match("wave") or string.lower(value):match("round")) then
-                        addLog(string.format("📺 UI TEXT CHANGED: %s", self:GetFullName()), Color3.new(0.3, 0.8, 1), true)
-                        addLog(string.format("   Old: '%s' → New: '%s'", oldValue or "nil", value), Color3.new(0.7, 0.7, 1))
-                        addLog(string.format("   ⭐ Detected Wave Number: %s", waveMatch), Color3.new(0.3, 1, 0.3), true)
-                        
-                        -- Update live wave display
-                        liveWaveLabel.Text = "🌊 Current Wave: " .. waveMatch
-                        waveSourceLabel.Text = "Source: " .. self.Name .. " (" .. self:GetFullName() .. ")"
-                        liveWaveLabel.TextColor3 = tonumber(waveMatch) >= 408 and Color3.new(1, 0.3, 0.3) or Color3.new(0.3, 1, 0.3)
-                    else
-                        addLog(string.format("📺 UI TEXT: %s changed", self.Name), Color3.new(0.5, 0.5, 0.8))
-                        addLog(string.format("   '%s' → '%s'", oldValue or "nil", value), Color3.new(0.6, 0.6, 0.8))
-                    end
-                end
-                return newindex(self, key, value)
-            end
-        end
-    end
-    
-    local function scanForTextLabels(instance)
-        if instance:IsA("TextLabel") or instance:IsA("TextButton") then
-            hookTextLabel(instance)
-        end
-        for _, child in ipairs(instance:GetChildren()) do
-            scanForTextLabels(child)
-        end
-    end
-    
-    -- Scan all GUIs
+--// SCAN UI FOR WAVE DISPLAYS (EVERY SECOND)
+local function scanUIForWaves()
     local playerGui = player:FindFirstChild("PlayerGui")
-    if playerGui then
-        scanForTextLabels(playerGui)
-        addLog("✅ Monitoring PlayerGui text labels", Color3.new(0.3, 1, 0.3))
+    if not playerGui then return end
+    
+    local highestWave = 0
+    local waveSource = nil
+    local waveTextFound = nil
+    
+    local function searchForWave(instance)
+        if instance:IsA("TextLabel") or instance:IsA("TextButton") then
+            local text = instance.Text or ""
+            
+            -- Look for wave patterns
+            local patterns = {
+                "Wave%s*(%d+)",
+                "WAVE%s*(%d+)",
+                "wave%s*(%d+)",
+                "Round%s*(%d+)",
+                "ROUND%s*(%d+)",
+                "W(%d+)",
+                "w(%d+)"
+            }
+            
+            for _, pattern in ipairs(patterns) do
+                local waveNum = text:match(pattern)
+                if waveNum then
+                    local num = tonumber(waveNum)
+                    if num and num > highestWave and num < 1000 then
+                        highestWave = num
+                        waveSource = instance.Name
+                        waveTextFound = text
+                    end
+                    break
+                end
+            end
+        end
+        
+        for _, child in ipairs(instance:GetChildren()) do
+            searchForWave(child)
+        end
     end
     
-    local coreGui = game:GetService("CoreGui")
-    scanForTextLabels(coreGui)
-    addLog("✅ Monitoring CoreGui text labels", Color3.new(0.3, 1, 0.3))
+    searchForWave(playerGui)
+    
+    if highestWave > 0 and highestWave ~= lastUIWave then
+        lastUIWave = highestWave
+        addLog(string.format("🌊 WAVE DETECTED: %d", highestWave), Color3.new(0.3, 1, 0.3), true)
+        addLog(string.format("   Source: %s", waveSource or "Unknown"), Color3.new(0.7, 0.7, 0.7))
+        addLog(string.format("   Full Text: '%s'", waveTextFound or "N/A"), Color3.new(0.7, 0.7, 0.7))
+        
+        -- Update live display
+        liveWaveLabel.Text = "🌊 Current Wave: " .. highestWave
+        waveSourceLabel.Text = "Source: " .. (waveSource or "Unknown") .. " (UI Text)"
+        liveWaveLabel.TextColor3 = highestWave >= 408 and Color3.new(1, 0.3, 0.3) or Color3.new(0.3, 1, 0.3)
+    end
 end
 
 --// MONITOR ALL REMOTE EVENTS
 local function monitorRemoteEvents()
     addLog("━━━ MONITORING REMOTE EVENTS ━━━", Color3.new(1, 0.8, 0), true)
     
+    local remoteCount = 0
+    
     local function hookRemoteEvent(remote)
         if remote:IsA("RemoteEvent") then
+            remoteCount = remoteCount + 1
             local oldFunc = remote.OnClientEvent
             remote.OnClientEvent = function(...)
                 local args = {...}
                 local argsStr = ""
                 for i, arg in ipairs(args) do
                     if i > 3 then
-                        argsStr = argsStr .. tostring(arg):sub(1, 50) .. (i < #args and ", ..." or "")
+                        argsStr = argsStr .. "..."
                         break
                     end
-                    argsStr = argsStr .. tostring(arg) .. (i < #args and ", " or "")
+                    if type(arg) == "table" then
+                        argsStr = argsStr .. "{table}"
+                    else
+                        argsStr = argsStr .. tostring(arg)
+                    end
+                    argsStr = argsStr .. (i < #args and ", " : "")
                 end
                 
                 local isWaveRelated = string.lower(remote.Name):match("wave") or 
                                       string.lower(remote.Name):match("round") or
                                       string.lower(remote.Name):match("next") or
-                                      string.lower(remote.Name):match("update")
+                                      string.lower(remote.Name):match("update") or
+                                      string.lower(remote.Name):match("spawn")
                 
                 if isWaveRelated then
                     addLog(string.format("🔔 WAVE-RELATED REMOTE: %s fired", remote.Name), Color3.new(1, 0.5, 0), true)
                     addLog(string.format("   Args: %s", argsStr), Color3.new(1, 0.8, 0.5))
                 else
-                    addLog(string.format("📡 RemoteEvent: %s fired", remote.Name), Color3.new(0.6, 0.6, 0.8))
-                    addLog(string.format("   Args: %s", argsStr), Color3.new(0.7, 0.7, 0.7))
+                    -- Only log non-wave remotes if they contain numbers (potential data)
+                    if argsStr:match("%d+") then
+                        addLog(string.format("📡 Remote: %s fired (has numbers)", remote.Name), Color3.new(0.6, 0.6, 0.8))
+                        addLog(string.format("   Args: %s", argsStr), Color3.new(0.7, 0.7, 0.7))
+                    end
                 end
                 
                 if oldFunc then oldFunc(...) end
@@ -301,7 +315,7 @@ local function monitorRemoteEvents()
     end
     
     scanForRemotes(ReplicatedStorage)
-    addLog("✅ Monitoring all RemoteEvents", Color3.new(0.3, 1, 0.3))
+    addLog(string.format("✅ Monitoring %d RemoteEvents", remoteCount), Color3.new(0.3, 1, 0.3))
 end
 
 --// MONITOR VALUE OBJECTS
@@ -320,14 +334,17 @@ local function monitorValueObjects()
                         addLog(string.format("⭐ WAVE VALUE: %s changed", valueObj.Name), Color3.new(1, 0.5, 0), true)
                         addLog(string.format("   %s → %s", lastValue, newValue), Color3.new(1, 0.8, 0.5))
                         
-                        if type(newValue) == "number" then
+                        if type(newValue) == "number" and newValue > 0 then
+                            lastUIWave = newValue
                             liveWaveLabel.Text = "🌊 Current Wave: " .. newValue
                             waveSourceLabel.Text = "Source: ValueObject - " .. valueObj.Name
                             liveWaveLabel.TextColor3 = newValue >= 408 and Color3.new(1, 0.3, 0.3) or Color3.new(0.3, 1, 0.3)
                         end
                     else
-                        addLog(string.format("📊 Value changed: %s (%s)", valueObj.Name, valueObj.ClassName), Color3.new(0.5, 0.5, 0.8))
-                        addLog(string.format("   %s → %s", lastValue, newValue), Color3.new(0.6, 0.6, 0.8))
+                        -- Log value changes that contain numbers (potential wave data)
+                        if tostring(newValue):match("%d+") and not isWaveRelated then
+                            addLog(string.format("📊 Value: %s = %s", valueObj.Name, newValue), Color3.new(0.5, 0.5, 0.8))
+                        end
                     end
                     lastValue = newValue
                 end
@@ -344,111 +361,41 @@ local function monitorValueObjects()
     
     scanForValues(player)
     scanForValues(ReplicatedStorage)
-    addLog("✅ Monitoring all Value objects", Color3.new(0.3, 1, 0.3))
+    addLog("✅ Monitoring Value objects", Color3.new(0.3, 1, 0.3))
 end
 
---// MONITOR BINDABLE EVENTS
-local function monitorBindableEvents()
-    addLog("━━━ MONITORING BINDABLE EVENTS ━━━", Color3.new(1, 0.8, 0), true)
+--// LIST ALL REMOTES (FOR REFERENCE)
+local function listAllRemotes()
+    addLog("━━━ LISTING ALL REMOTES ━━━", Color3.new(1, 0.8, 0), true)
     
-    local function hookBindable(bindable)
-        if bindable:IsA("BindableEvent") then
-            local oldFunc = bindable.Event
-            bindable.Event = function(...)
-                local args = {...}
-                local argsStr = ""
-                for i, arg in ipairs(args) do
-                    if i > 3 then
-                        argsStr = argsStr .. "..."
-                        break
-                    end
-                    argsStr = argsStr .. tostring(arg) .. (i < #args and ", " : "")
-                end
-                
-                addLog(string.format("🔗 BindableEvent: %s fired", bindable.Name), Color3.new(0.6, 0.6, 0.8))
-                addLog(string.format("   Args: %s", argsStr), Color3.new(0.7, 0.7, 0.7))
-                
-                if oldFunc then oldFunc(...) end
-            end
-        end
-    end
+    local remoteNames = {}
     
-    local function scanForBindables(instance)
-        hookBindable(instance)
-        for _, child in ipairs(instance:GetChildren()) do
-            scanForBindables(child)
-        end
-    end
-    
-    scanForBindables(ReplicatedStorage)
-    addLog("✅ Monitoring BindableEvents", Color3.new(0.3, 1, 0.3))
-end
-
---// MONITOR ATTRIBUTE CHANGES
-local function monitorAttributes()
-    addLog("━━━ MONITORING ATTRIBUTES ━━━", Color3.new(1, 0.8, 0), true)
-    
-    local function monitorInstanceAttributes(instance)
-        local function onAttributeChanged(attrName)
-            return function()
-                local newValue = instance:GetAttribute(attrName)
-                addLog(string.format("🏷️ Attribute changed: %s.%s", instance.Name, attrName), Color3.new(0.5, 0.5, 0.8))
-                addLog(string.format("   New value: %s", tostring(newValue)), Color3.new(0.6, 0.6, 0.8))
-                
-                if string.lower(attrName):match("wave") and type(newValue) == "number" then
-                    liveWaveLabel.Text = "🌊 Current Wave: " .. newValue
-                    waveSourceLabel.Text = "Source: Attribute - " .. instance.Name .. "." .. attrName
-                end
-            end
-        end
-        
-        local attributes = instance:GetAttributes()
-        for attrName, _ in pairs(attributes) do
-            instance:GetAttributeChangedSignal(attrName):Connect(onAttributeChanged(attrName))
-        end
-    end
-    
-    local function scanForAttributes(instance)
-        monitorInstanceAttributes(instance)
-        for _, child in ipairs(instance:GetChildren()) do
-            scanForAttributes(child)
-        end
-    end
-    
-    scanForAttributes(workspace)
-    scanForAttributes(player)
-    addLog("✅ Monitoring attribute changes", Color3.new(0.3, 1, 0.3))
-end
-
---// MONITOR WORKSPACE SIGNALS
-local function monitorWorkspace()
-    addLog("━━━ MONITORING WORKSPACE ━━━", Color3.new(1, 0.8, 0), true)
-    
-    -- Monitor new enemies spawning
-    workspace.ChildAdded:Connect(function(child)
-        local nameLower = string.lower(child.Name)
-        if nameLower:match("enemy") or nameLower:match("zombie") or nameLower:match("mob") or nameLower:match("creep") then
-            addLog(string.format("👾 NEW ENEMY SPAWNED: %s", child.Name), Color3.new(1, 0.5, 0.5), true)
-        end
-    end)
-    
-    -- Monitor wave-related parts
-    local function scanForWaveParts(instance)
-        if instance:IsA("BasePart") and string.lower(instance.Name):match("wave") then
-            addLog(string.format("🔧 Wave-related part found: %s", instance.Name), Color3.new(0.5, 0.8, 1))
+    local function collectRemotes(instance)
+        if instance:IsA("RemoteEvent") or instance:IsA("RemoteFunction") then
+            table.insert(remoteNames, instance.Name .. " (" .. instance.ClassName .. ")")
         end
         for _, child in ipairs(instance:GetChildren()) do
-            scanForWaveParts(child)
+            collectRemotes(child)
         end
     end
     
-    scanForWaveParts(workspace)
-    addLog("✅ Monitoring workspace for enemies and wave parts", Color3.new(0.3, 1, 0.3))
+    collectRemotes(ReplicatedStorage)
+    
+    -- Sort and display
+    table.sort(remoteNames)
+    addLog(string.format("Found %d remotes:", #remoteNames), Color3.new(0.3, 1, 0.3))
+    for i, name in ipairs(remoteNames) do
+        if string.lower(name):match("wave") or string.lower(name):match("round") then
+            addLog(string.format("  ⭐ %s", name), Color3.new(1, 0.8, 0))
+        else
+            addLog(string.format("  📡 %s", name), Color3.new(0.6, 0.6, 0.8))
+        end
+    end
 end
 
---// MANUAL WAVE DETECTION FUNCTION
-local function manualWaveDetection()
-    addLog("━━━ MANUAL WAVE DETECTION ━━━", Color3.new(1, 0.8, 0), true)
+--// SCAN FOR WAVE UI ELEMENTS (WITH HIGHLIGHT)
+local function scanAndHighlightWaveUI()
+    addLog("━━━ SCANNING FOR WAVE UI ELEMENTS ━━━", Color3.new(1, 0.8, 0), true)
     
     local playerGui = player:FindFirstChild("PlayerGui")
     if not playerGui then 
@@ -456,71 +403,65 @@ local function manualWaveDetection()
         return 
     end
     
-    local foundWaves = {}
+    local foundElements = {}
     
-    local function searchForWaveNumbers(instance, path)
+    local function searchForWaveElements(instance, path)
         if instance:IsA("TextLabel") or instance:IsA("TextButton") then
             local text = instance.Text or ""
-            local numbers = text:match("%d+")
-            if numbers and (#text < 50) then
-                local num = tonumber(numbers)
-                if num and num > 0 and num < 1000 then
-                    table.insert(foundWaves, {
-                        text = text,
-                        number = num,
-                        path = path .. "/" .. instance.Name,
-                        instance = instance
-                    })
-                end
+            if text:match("Wave") or text:match("WAVE") or text:match("wave") or 
+               text:match("Round") or text:match("ROUND") then
+                local numbers = text:match("%d+")
+                table.insert(foundElements, {
+                    instance = instance,
+                    text = text,
+                    numbers = numbers,
+                    path = path .. "/" .. instance.Name
+                })
             end
         end
         
         for _, child in ipairs(instance:GetChildren()) do
-            searchForWaveNumbers(child, path .. "/" .. instance.Name)
+            searchForWaveElements(child, path .. "/" .. instance.Name)
         end
     end
     
-    searchForWaveNumbers(playerGui, "PlayerGui")
+    searchForWaveElements(playerGui, "PlayerGui")
     
-    if #foundWaves > 0 then
-        addLog(string.format("Found %d potential wave displays:", #foundWaves), Color3.new(0.3, 1, 0.3), true)
-        for i, wave in ipairs(foundWaves) do
-            addLog(string.format("  %d. Wave: %d | Text: '%s'", i, wave.number, wave.text), Color3.new(1, 0.8, 0))
-            addLog(string.format("     Path: %s", wave.path), Color3.new(0.7, 0.7, 0.7))
+    if #foundElements > 0 then
+        addLog(string.format("Found %d wave-related UI elements:", #foundElements), Color3.new(0.3, 1, 0.3), true)
+        for i, elem in ipairs(foundElements) do
+            addLog(string.format("  %d. Text: '%s'", i, elem.text), Color3.new(1, 0.8, 0))
+            addLog(string.format("     Path: %s", elem.path), Color3.new(0.7, 0.7, 0.7))
+            addLog(string.format("     Numbers: %s", elem.numbers or "none"), Color3.new(0.7, 0.7, 0.7))
             
-            -- Highlight the found UI element
-            local highlight = Instance.new("BoxHandleAdornment")
-            highlight.Adornee = wave.instance
-            highlight.Size = wave.instance.AbsoluteSize
-            highlight.Color3 = Color3.new(1, 0, 0)
-            highlight.Transparency = 0.5
-            highlight.Visible = true
-            highlight.ZIndex = 10
-            highlight.Parent = wave.instance
-            
-            task.delay(3, function()
-                highlight:Destroy()
-            end)
+            -- Highlight the element
+            local originalColor = elem.instance.BackgroundColor3
+            for _ = 1, 3 do
+                elem.instance.BackgroundColor3 = Color3.new(1, 0, 0)
+                task.wait(0.3)
+                elem.instance.BackgroundColor3 = Color3.new(0, 1, 0)
+                task.wait(0.3)
+            end
+            elem.instance.BackgroundColor3 = originalColor
         end
     else
-        addLog("No wave numbers found in UI. Start a raid first!", Color3.new(1, 0.5, 0))
+        addLog("No wave-related UI elements found. Start a raid first!", Color3.new(1, 0.5, 0))
     end
 end
 
---// START ALL MONITORS
-addLog("═══════════════════════════════════════════", Color3.new(1, 1, 0), true)
-addLog("🔍 EVENT MONITOR STARTED - LOOKING FOR WAVE TRIGGERS", Color3.new(1, 0.5, 0), true)
-addLog("═══════════════════════════════════════════", Color3.new(1, 1, 0), true)
+--// START MONITORING LOOP
+local function startMonitorLoop()
+    task.spawn(function()
+        while true do
+            if not paused then
+                scanUIForWaves()
+            end
+            task.wait(0.5)
+        end
+    end)
+end
 
--- Start monitoring
-monitorUITextChanges()
-monitorRemoteEvents()
-monitorValueObjects()
-monitorBindableEvents()
-monitorAttributes()
-monitorWorkspace()
-
--- Button connections
+--// BUTTON CONNECTIONS
 pauseBtn.MouseButton1Click:Connect(function()
     paused = not paused
     pauseBtn.Text = paused and "▶️ START" or "⏸️ PAUSE"
@@ -535,7 +476,7 @@ copyBtn.MouseButton1Click:Connect(function()
     end
     if allText ~= "" then
         setclipboard(allText)
-        addLog("✅ Full console copied to clipboard!", Color3.new(0.3, 1, 0.3))
+        addLog("✅ Console copied to clipboard!", Color3.new(0.3, 1, 0.3))
     else
         addLog("❌ No data to copy!", Color3.new(1, 0.3, 0.3))
     end
@@ -552,7 +493,11 @@ clearBtn.MouseButton1Click:Connect(function()
 end)
 
 detectBtn.MouseButton1Click:Connect(function()
-    manualWaveDetection()
+    scanAndHighlightWaveUI()
+end)
+
+scanRemotesBtn.MouseButton1Click:Connect(function()
+    listAllRemotes()
 end)
 
 filterBox:GetPropertyChangedSignal("Text"):Connect(function()
@@ -560,11 +505,27 @@ filterBox:GetPropertyChangedSignal("Text"):Connect(function()
     addLog(string.format("Filter set to: '%s'", filterText == "" and "none" or filterText), Color3.new(1, 0.8, 0))
 end)
 
-addLog("✅ All monitors active! Start a raid to see wave triggers", Color3.new(0.3, 1, 0.3))
+--// INITIALIZE
+addLog("═══════════════════════════════════════════", Color3.new(1, 1, 0), true)
+addLog("🔍 EVENT MONITOR STARTED (NO METATABLE VERSION)", Color3.new(1, 0.5, 0), true)
+addLog("═══════════════════════════════════════════", Color3.new(1, 1, 0), true)
+
+-- Start all monitors
+monitorRemoteEvents()
+monitorValueObjects()
+startMonitorLoop()
+
+-- List all remotes automatically
+task.wait(2)
+listAllRemotes()
+
+addLog("✅ All monitors active!", Color3.new(0.3, 1, 0.3))
 addLog("💡 TIPS:", Color3.new(1, 0.8, 0))
 addLog("   • Watch for ⭐ marked events - these are wave-related", Color3.new(0.7, 0.7, 0.7))
-addLog("   • When wave changes, you'll see what UI element updates", Color3.new(0.7, 0.7, 0.7))
-addLog("   • Press 'DETECT WAVE' to find and highlight wave displays", Color3.new(0.7, 0.7, 0.7))
+addLog("   • When wave changes, you'll see it in the console", Color3.new(0.7, 0.7, 0.7))
+addLog("   • Press 'SCAN UI' to find and flash wave displays", Color3.new(0.7, 0.7, 0.7))
+addLog("   • Press 'SCAN REMOTES' to see all available remotes", Color3.new(0.7, 0.7, 0.7))
 addLog("   • Use filter to show only specific events (ex: 'wave')", Color3.new(0.7, 0.7, 0.7))
+addLog("   • Start a raid to see wave triggers in action!", Color3.new(1, 0.8, 0))
 
 end)
