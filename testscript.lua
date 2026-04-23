@@ -1,260 +1,322 @@
---// DELTA MOBILE - GUI WAVE MONITOR WITH COPY BUTTON
---// NO COMPLEX FUNCTIONS - SHOULD WORK 100%
-
+--// FIND WAVE REMOTES - FOR DELTA MOBILE
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local player = Players.LocalPlayer
 
--- Create GUI (using only basic properties)
+-- Create GUI
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "WaveMonitorGUI"
+screenGui.Name = "RemoteFinder"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = game:GetService("CoreGui")
 
--- Main Frame
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 320, 0, 400)
-mainFrame.Position = UDim2.new(0.5, -160, 0.5, -200)
+mainFrame.Size = UDim2.new(0, 400, 0, 500)
+mainFrame.Position = UDim2.new(0.5, -200, 0.5, -250)
 mainFrame.BackgroundColor3 = Color3.new(0, 0, 0)
 mainFrame.BackgroundTransparency = 0.2
 mainFrame.BorderSizePixel = 2
-mainFrame.BorderColor3 = Color3.new(0, 255, 0)
+mainFrame.BorderColor3 = Color3.new(255, 100, 0)
 mainFrame.Parent = screenGui
 
--- Title
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0, 40)
-title.Position = UDim2.new(0, 0, 0, 0)
-title.Text = "🌊 WAVE MONITOR"
+title.Text = "🔍 REMOTE & WAVE FINDER"
 title.TextColor3 = Color3.new(255, 255, 255)
 title.BackgroundColor3 = Color3.new(50, 50, 50)
-title.TextSize = 18
+title.TextSize = 16
 title.Font = Enum.Font.SourceSansBold
 title.Parent = mainFrame
 
--- Big Wave Display
-local waveDisplay = Instance.new("TextLabel")
-waveDisplay.Size = UDim2.new(1, -20, 0, 80)
-waveDisplay.Position = UDim2.new(0, 10, 0, 50)
-waveDisplay.Text = "Wave: ???"
-waveDisplay.TextColor3 = Color3.new(0, 255, 0)
-waveDisplay.BackgroundColor3 = Color3.new(30, 30, 30)
-waveDisplay.TextSize = 32
-waveDisplay.Font = Enum.Font.SourceSansBold
-waveDisplay.Parent = mainFrame
+-- Wave display
+local waveBox = Instance.new("Frame")
+waveBox.Size = UDim2.new(1, -20, 0, 80)
+waveBox.Position = UDim2.new(0, 10, 0, 50)
+waveBox.BackgroundColor3 = Color3.new(30, 30, 30)
+waveBox.Parent = mainFrame
 
--- Status
-local statusText = Instance.new("TextLabel")
-statusText.Size = UDim2.new(1, -20, 0, 30)
-statusText.Position = UDim2.new(0, 10, 0, 140)
-statusText.Text = "Status: Monitoring"
-statusText.TextColor3 = Color3.new(255, 255, 255)
-statusText.BackgroundColor3 = Color3.new(30, 30, 30)
-statusText.TextSize = 12
-statusText.Parent = mainFrame
+local waveLabel = Instance.new("TextLabel")
+waveLabel.Size = UDim2.new(1, 0, 0, 50)
+waveLabel.Position = UDim2.new(0, 0, 0, 10)
+waveLabel.Text = "Wave: ???"
+waveLabel.TextColor3 = Color3.new(0, 255, 0)
+waveLabel.TextSize = 28
+waveLabel.BackgroundTransparency = 1
+waveLabel.Font = Enum.Font.SourceSansBold
+waveLabel.Parent = waveBox
 
--- Log Scroll Frame
-local logFrame = Instance.new("ScrollingFrame")
-logFrame.Size = UDim2.new(1, -20, 0, 150)
-logFrame.Position = UDim2.new(0, 10, 0, 180)
-logFrame.BackgroundColor3 = Color3.new(20, 20, 20)
-logFrame.BorderSizePixel = 1
-logFrame.BorderColor3 = Color3.new(100, 100, 100)
-logFrame.Parent = mainFrame
+local waveSourceLabel = Instance.new("TextLabel")
+waveSourceLabel.Size = UDim2.new(1, 0, 0, 20)
+waveSourceLabel.Position = UDim2.new(0, 0, 0, 60)
+waveSourceLabel.Text = "Source: Unknown"
+waveSourceLabel.TextColor3 = Color3.new(200, 200, 200)
+waveSourceLabel.TextSize = 10
+waveSourceLabel.BackgroundTransparency = 1
+waveSourceLabel.Parent = waveBox
 
-local logList = Instance.new("UIListLayout")
-logList.Parent = logFrame
-logList.Padding = UDim.new(0, 2)
+-- Remote events log
+local remoteLabel = Instance.new("TextLabel")
+remoteLabel.Size = UDim2.new(1, -20, 0, 25)
+remoteLabel.Position = UDim2.new(0, 10, 0, 140)
+remoteLabel.Text = "📡 DETECTED REMOTE EVENTS:"
+remoteLabel.TextColor3 = Color3.new(255, 255, 0)
+remoteLabel.BackgroundColor3 = Color3.new(30, 30, 30)
+remoteLabel.TextSize = 11
+remoteLabel.Parent = mainFrame
 
-local logContent = Instance.new("Frame")
-logContent.Size = UDim2.new(1, 0, 0, 0)
-logContent.BackgroundTransparency = 1
-logContent.Parent = logFrame
+local remoteScroll = Instance.new("ScrollingFrame")
+remoteScroll.Size = UDim2.new(1, -20, 0, 200)
+remoteScroll.Position = UDim2.new(0, 10, 0, 170)
+remoteScroll.BackgroundColor3 = Color3.new(20, 20, 20)
+remoteScroll.BorderSizePixel = 1
+remoteScroll.BorderColor3 = Color3.new(100, 100, 100)
+remoteScroll.Parent = mainFrame
+
+local remoteList = Instance.new("UIListLayout")
+remoteList.Parent = remoteScroll
+remoteList.Padding = UDim.new(0, 2)
+
+local remoteContent = Instance.new("Frame")
+remoteContent.Size = UDim2.new(1, 0, 0, 0)
+remoteContent.BackgroundTransparency = 1
+remoteContent.Parent = remoteScroll
 
 -- Buttons
-local copyButton = Instance.new("TextButton")
-copyButton.Size = UDim2.new(0.45, -5, 0, 40)
-copyButton.Position = UDim2.new(0, 10, 0, 340)
-copyButton.Text = "📋 COPY LOGS"
-copyButton.BackgroundColor3 = Color3.new(0, 100, 200)
-copyButton.TextColor3 = Color3.new(255, 255, 255)
-copyButton.TextSize = 14
-copyButton.Parent = mainFrame
+local copyBtn = Instance.new("TextButton")
+copyBtn.Size = UDim2.new(0.48, -5, 0, 40)
+copyBtn.Position = UDim2.new(0, 10, 0, 380)
+copyBtn.Text = "📋 COPY DATA"
+copyBtn.BackgroundColor3 = Color3.new(0, 100, 200)
+copyBtn.TextColor3 = Color3.new(255, 255, 255)
+copyBtn.TextSize = 12
+copyBtn.Parent = mainFrame
 
-local closeButton = Instance.new("TextButton")
-closeButton.Size = UDim2.new(0.45, -5, 0, 40)
-closeButton.Position = UDim2.new(0.52, 0, 0, 340)
-closeButton.Text = "❌ CLOSE"
-closeButton.BackgroundColor3 = Color3.new(200, 50, 50)
-closeButton.TextColor3 = Color3.new(255, 255, 255)
-closeButton.TextSize = 14
-closeButton.Parent = mainFrame
+local clearBtn = Instance.new("TextButton")
+clearBtn.Size = UDim2.new(0.48, -5, 0, 40)
+clearBtn.Position = UDim2.new(0.52, 0, 0, 380)
+clearBtn.Text = "🗑️ CLEAR"
+clearBtn.BackgroundColor3 = Color3.new(200, 100, 50)
+clearBtn.TextColor3 = Color3.new(255, 255, 255)
+clearBtn.TextSize = 12
+clearBtn.Parent = mainFrame
 
--- Variables
-local waveHistory = {}  -- Store {wave, time}
+local testEndBtn = Instance.new("TextButton")
+testEndBtn.Size = UDim2.new(0.48, -5, 0, 40)
+testEndBtn.Position = UDim2.new(0, 10, 0, 430)
+testEndBtn.Text = "⚡ TEST END RAID"
+testEndBtn.BackgroundColor3 = Color3.new(200, 50, 50)
+testEndBtn.TextColor3 = Color3.new(255, 255, 255)
+testEndBtn.TextSize = 12
+testEndBtn.Parent = mainFrame
+
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0.48, -5, 0, 40)
+closeBtn.Position = UDim2.new(0.52, 0, 0, 430)
+closeBtn.Text = "❌ CLOSE"
+closeBtn.BackgroundColor3 = Color3.new(100, 50, 100)
+closeBtn.TextColor3 = Color3.new(255, 255, 255)
+closeBtn.TextSize = 12
+closeBtn.Parent = mainFrame
+
+-- Data storage
+local remoteEventsFired = {}  -- Store {remote, args, time}
+local waveHistory = {}
 local currentWave = 0
 local lastWave = 0
-local isInRaid = false
 
--- Add log to GUI
-local function addLog(text, color)
-    color = color or Color3.new(200, 200, 200)
+-- Add log to remote display
+local function addRemoteLog(remoteName, args)
     local time = os.date("%H:%M:%S")
-    local logText = "[" .. time .. "] " .. text
-    
-    -- Create label
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, -10, 0, 18)
-    label.Text = logText
-    label.TextColor3 = color
-    label.BackgroundTransparency = 1
-    label.TextSize = 10
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = logContent
-    
-    -- Store in history (for copy)
-    table.insert(waveHistory, 1, {text = logText, color = color})
-    
-    -- Keep only last 100 logs
-    while #waveHistory > 100 do
-        table.remove(waveHistory)
+    local argsStr = ""
+    for i, arg in ipairs(args) do
+        if i > 2 then
+            argsStr = argsStr .. "..."
+            break
+        end
+        if type(arg) == "number" then
+            argsStr = argsStr .. tostring(arg)
+        elseif type(arg) == "string" then
+            argsStr = argsStr .. "'" .. tostring(arg) .. "'"
+        else
+            argsStr = argsStr .. type(arg)
+        end
+        argsStr = argsStr .. (i < #args and #args > 2 and ", " or "")
     end
     
-    -- Keep only last 20 visible logs
-    local children = logContent:GetChildren()
-    if #children > 20 then
-        children[#children]:Destroy()
+    local logText = "[" .. time .. "] " .. remoteName
+    if argsStr ~= "" then
+        logText = logText .. " → " .. argsStr
     end
     
-    -- Auto scroll to top
+    -- Store
+    table.insert(remoteEventsFired, 1, {text = logText, remote = remoteName, args = args, time = time})
+    while #remoteEventsFired > 50 do table.remove(remoteEventsFired) end
+    
+    -- Update UI
+    for _, child in ipairs(remoteContent:GetChildren()) do
+        child:Destroy()
+    end
+    
+    for i = #remoteEventsFired, 1, -1 do
+        local ev = remoteEventsFired[i]
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(1, -10, 0, 18)
+        label.Text = ev.text
+        -- Highlight wave-related remotes
+        if string.find(string.lower(ev.remote), "wave") or string.find(string.lower(ev.remote), "round") then
+            label.TextColor3 = Color3.new(255, 200, 0)
+        else
+            label.TextColor3 = Color3.new(150, 150, 150)
+        end
+        label.BackgroundTransparency = 1
+        label.TextSize = 10
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.Parent = remoteContent
+    end
+    
     task.wait()
-    logFrame.CanvasPosition = Vector2.new(0, 0)
-    logFrame.CanvasSize = UDim2.new(0, 0, 0, #children * 20)
+    remoteScroll.CanvasPosition = Vector2.new(0, 0)
+    remoteScroll.CanvasSize = UDim2.new(0, 0, 0, #remoteEventsFired * 20)
 end
 
--- Simple wave detection
+-- HOOK ALL REMOTE EVENTS (Simple method that works on Delta)
+local function hookAllRemotes()
+    local function scanAndHook(instance)
+        if instance:IsA("RemoteEvent") then
+            local oldFunc = instance.OnClientEvent
+            instance.OnClientEvent = function(...)
+                local args = {...}
+                addRemoteLog(instance.Name, args)
+                
+                -- If this remote has wave numbers in args, highlight it!
+                for _, arg in ipairs(args) do
+                    if type(arg) == "number" and arg > 0 and arg < 500 then
+                        addRemoteLog("⚠️ WAVE NUMBER DETECTED IN: " .. instance.Name, {arg})
+                    end
+                end
+                
+                if oldFunc then oldFunc(...) end
+            end
+        end
+        
+        for _, child in ipairs(instance:GetChildren()) do
+            scanAndHook(child)
+        end
+    end
+    
+    scanAndHook(ReplicatedStorage)
+    addRemoteLog("Remote monitor ACTIVE", {})
+end
+
+-- Simple wave detection (to see when wave changes with remotes)
 local function detectWave()
     local playerGui = player:FindFirstChild("PlayerGui")
-    if not playerGui then return nil end
-    
-    local highest = 0
+    if not playerGui then return nil, nil end
     
     local function search(instance)
         for _, child in pairs(instance:GetChildren()) do
             if child:IsA("TextLabel") then
                 local text = child.Text or ""
-                -- Try different wave patterns
-                local num = text:match("Wave%s*(%d+)")
-                if not num then num = text:match("WAVE%s*(%d+)") end
-                if not num then num = text:match("wave%s*(%d+)") end
-                if not num then num = text:match("Round%s*(%d+)") end
-                if not num then num = text:match("W(%d+)") end
-                
+                local num = text:match("Wave%s*(%d+)") or text:match("WAVE%s*(%d+)") or text:match("wave%s*(%d+)")
                 if num then
-                    local waveNum = tonumber(num)
-                    if waveNum and waveNum > highest and waveNum < 500 then
-                        highest = waveNum
-                    end
+                    return tonumber(num), child.Name
                 end
             end
-            search(child)
+            local result, src = search(child)
+            if result then return result, src end
         end
+        return nil, nil
     end
     
-    search(playerGui)
-    return highest > 0 and highest or nil
+    return search(playerGui)
 end
 
--- Main monitoring loop
+-- Main monitoring
 spawn(function()
-    addLog("=== WAVE MONITOR STARTED ===", Color3.new(0, 255, 0))
-    addLog("Start a raid to detect waves", Color3.new(255, 255, 0))
-    
     while true do
-        local wave = detectWave()
+        local wave, source = detectWave()
         
-        if wave then
-            if not isInRaid then
-                isInRaid = true
-                addLog("🏟️ Raid detected!", Color3.new(0, 255, 0))
+        if wave and wave ~= lastWave then
+            lastWave = wave
+            currentWave = wave
+            waveLabel.Text = "Wave: " .. wave
+            waveSourceLabel.Text = "Source: " .. (source or "Unknown")
+            
+            if wave >= 408 then
+                waveLabel.TextColor3 = Color3.new(255, 0, 0)
+                addRemoteLog("⚠️ TARGET WAVE " .. wave .. " REACHED", {})
+            else
+                waveLabel.TextColor3 = Color3.new(0, 255, 0)
             end
             
-            if wave ~= lastWave then
-                lastWave = wave
-                currentWave = wave
-                
-                -- Update display
-                if wave >= 408 then
-                    waveDisplay.Text = "⚠️ WAVE " .. wave .. " ⚠️"
-                    waveDisplay.TextColor3 = Color3.new(255, 0, 0)
-                    statusText.Text = "TARGET REACHED! Wave " .. wave
-                    addLog("🎯 TARGET WAVE " .. wave .. " REACHED!", Color3.new(255, 0, 0))
-                else
-                    waveDisplay.Text = "🌊 WAVE " .. wave
-                    waveDisplay.TextColor3 = Color3.new(0, 255, 0)
-                    statusText.Text = "In Raid - Wave " .. wave
-                    addLog("Wave: " .. wave, Color3.new(0, 255, 0))
-                end
-            end
-        else
-            if isInRaid then
-                isInRaid = false
-                lastWave = 0
-                waveDisplay.Text = "Wave: ???"
-                waveDisplay.TextColor3 = Color3.new(255, 255, 0)
-                statusText.Text = "No raid detected"
-                addLog("🏁 Raid ended", Color3.new(255, 255, 0))
-            end
+            -- Log wave change to remote list
+            addRemoteLog("📊 WAVE CHANGED TO: " .. wave, {})
         end
         
-        wait(0.5)
+        wait(0.3)
     end
 end)
 
--- COPY BUTTON - This is what you need!
-copyButton.MouseButton1Click:Connect(function()
-    local allLogs = "=== WAVE MONITOR LOGS ===\n"
-    allLogs = allLogs .. "Time: " .. os.date("%Y-%m-%d %H:%M:%S") .. "\n"
-    allLogs = allLogs .. "Last Wave: " .. currentWave .. "\n"
-    allLogs = allLogs .. "Total Logs: " .. #waveHistory .. "\n"
-    allLogs = allLogs .. "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+-- Test end raid function
+local function testEndRaid()
+    local events = ReplicatedStorage:FindFirstChild("Events")
+    if events then
+        local remotes = events:FindFirstChild("Remotes")
+        if remotes then
+            local raidStop = remotes:FindFirstChild("RaidStop")
+            if raidStop then
+                pcall(function()
+                    raidStop:FireServer()
+                    addRemoteLog("✅ TEST: RaidStop fired", {})
+                end)
+            else
+                addRemoteLog("❌ RaidStop not found", {})
+            end
+        end
+    end
+end
+
+-- Button functions
+copyBtn.MouseButton1Click:Connect(function()
+    local data = "=== REMOTE & WAVE DATA ===\n"
+    data = data .. "Time: " .. os.date("%Y-%m-%d %H:%M:%S") .. "\n"
+    data = data .. "Current Wave: " .. currentWave .. "\n"
+    data = data .. "Total Remotes Logged: " .. #remoteEventsFired .. "\n"
+    data = data .. "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+    data = data .. "REMOTE EVENTS:\n"
     
-    -- Add all logs in order
-    for i = #waveHistory, 1, -1 do
-        allLogs = allLogs .. waveHistory[i].text .. "\n"
+    for i = #remoteEventsFired, 1, -1 do
+        data = data .. remoteEventsFired[i].text .. "\n"
     end
     
-    -- Copy to clipboard
     pcall(function()
-        setclipboard(allLogs)
-        addLog("✅ Logs copied to clipboard!", Color3.new(0, 255, 0))
-        statusText.Text = "Copied to clipboard!"
-        wait(2)
-        if isInRaid then
-            statusText.Text = "In Raid - Wave " .. currentWave
-        else
-            statusText.Text = "No raid detected"
-        end
+        setclipboard(data)
+        addRemoteLog("✅ Data copied to clipboard!", {})
     end)
 end)
 
--- Close button
-closeButton.MouseButton1Click:Connect(function()
+clearBtn.MouseButton1Click:Connect(function()
+    remoteEventsFired = {}
+    for _, child in ipairs(remoteContent:GetChildren()) do
+        child:Destroy()
+    end
+    addRemoteLog("Console cleared", {})
+end)
+
+testEndBtn.MouseButton1Click:Connect(function()
+    testEndRaid()
+end)
+
+closeBtn.MouseButton1Click:Connect(function()
     screenGui:Destroy()
 end)
 
--- Make draggable for mobile
-local dragStart = nil
-local dragPos = nil
-
+-- Make draggable
+local dragStart, dragPos
 mainFrame.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch then
         dragStart = input.Position
         dragPos = mainFrame.Position
     end
-end)
-
-mainFrame.InputEnded:Connect(function()
-    dragStart = nil
 end)
 
 game:GetService("UserInputService").TouchMoved:Connect(function(input)
@@ -265,4 +327,8 @@ game:GetService("UserInputService").TouchMoved:Connect(function(input)
     end
 end)
 
-print("Wave Monitor Loaded - GUI with COPY button ready")
+-- Start
+hookAllRemotes()
+addRemoteLog("=== REMOTE FINDER ACTIVE ===", {})
+addRemoteLog("Start a raid! Any remote that fires will appear here", {})
+addRemoteLog("Look for remotes with WAVE NUMBERS in them", {})
