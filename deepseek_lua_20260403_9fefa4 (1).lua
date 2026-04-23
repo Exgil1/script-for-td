@@ -1,4 +1,4 @@
---// COMPLETE TD AUTO FARM - WITH AUTO GEM FARM (WAVE END)
+--// COMPLETE TD AUTO FARM - WITH AUTO GEM FARM (FIXED TOGGLE)
 pcall(function()
 
 --// SERVICES
@@ -294,9 +294,6 @@ end
 local function endCurrentRaid()
     pcall(function()
         raidStop:FireServer()
-        if autoGemFarmStatus then
-            autoGemFarmStatus.Text = "Raid ended at wave " .. currentWave
-        end
     end)
 end
 
@@ -307,6 +304,7 @@ local function startAutoGemFarm()
     end
     
     autoGemFarmActive = true
+    
     autoGemFarmThread = task.spawn(function()
         while autoGemFarmActive do
             local wave = getCurrentWave()
@@ -320,6 +318,10 @@ local function startAutoGemFarm()
                     })
                     if #waveHistory > 50 then table.remove(waveHistory) end
                     
+                    if currentWaveDisplay then
+                        currentWaveDisplay.Text = "Current Wave: " .. wave
+                    end
+                    
                     if autoGemFarmStatus then
                         autoGemFarmStatus.Text = string.format("Current Wave: %d | Target: %d", wave, targetEndWave)
                         if wave >= targetEndWave then
@@ -327,10 +329,6 @@ local function startAutoGemFarm()
                         else
                             autoGemFarmStatus.TextColor3 = Color3.new(0.3, 1, 0.3)
                         end
-                    end
-                    
-                    if autoEndWaveDisplay then
-                        autoEndWaveDisplay.Text = "Target Wave: " .. targetEndWave
                     end
                     
                     if wave >= targetEndWave then
@@ -342,6 +340,9 @@ local function startAutoGemFarm()
                         if autoGemFarmToggle then
                             autoGemFarmToggle.Text = "💎 AUTO GEM FARM: OFF"
                             autoGemFarmToggle.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
+                        end
+                        if autoGemFarmStatus then
+                            autoGemFarmStatus.Text = "Auto Gem Farm: Ready (Target reached)"
                         end
                         break
                     end
@@ -837,7 +838,7 @@ end)
 
 refreshChallengeOrder()
 
---// AUTO GEM FARM TAB (NEW)
+--// AUTO GEM FARM TAB (CREATED FIRST BEFORE REFERENCES)
 local gemFarmPanel = panels.gemfarm
 
 local gemFarmTitle = Instance.new("TextLabel")
@@ -897,6 +898,60 @@ setWaveBtn.TextColor3 = Color3.new(1, 1, 1)
 setWaveBtn.TextSize = 12
 setWaveBtn.Parent = waveInputFrame
 
+-- CREATE THE TOGGLE BUTTON FIRST
+local autoGemFarmToggle = Instance.new("TextButton")
+autoGemFarmToggle.Size = UDim2.new(1, -20, 0, 55)
+autoGemFarmToggle.Text = "💎 AUTO GEM FARM: OFF"
+autoGemFarmToggle.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
+autoGemFarmToggle.TextColor3 = Color3.new(1, 1, 1)
+autoGemFarmToggle.Font = Enum.Font.GothamBold
+autoGemFarmToggle.TextSize = 16
+autoGemFarmToggle.Parent = gemFarmPanel
+
+-- CREATE STATUS LABEL AFTER TOGGLE
+local autoGemFarmStatus = Instance.new("TextLabel")
+autoGemFarmStatus.Size = UDim2.new(1, -20, 0, 40)
+autoGemFarmStatus.Text = "Auto Gem Farm: Ready"
+autoGemFarmStatus.TextColor3 = Color3.new(0.7, 0.7, 0.7)
+autoGemFarmStatus.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+autoGemFarmStatus.Parent = gemFarmPanel
+
+-- NOW CONNECT THE TOGGLE FUNCTION
+autoGemFarmToggle.MouseButton1Click:Connect(function()
+    print("Toggle clicked, current state: " .. tostring(autoGemFarmActive))
+    if autoGemFarmActive then
+        stopAutoGemFarm()
+        autoGemFarmToggle.Text = "💎 AUTO GEM FARM: OFF"
+        autoGemFarmToggle.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
+        print("Auto Gem Farm turned OFF")
+    else
+        startAutoGemFarm()
+        autoGemFarmToggle.Text = "💎 AUTO GEM FARM: ON"
+        autoGemFarmToggle.BackgroundColor3 = Color3.fromRGB(50, 100, 50)
+        print("Auto Gem Farm turned ON, target wave: " .. targetEndWave)
+    end
+end)
+
+local endNowBtn = Instance.new("TextButton")
+endNowBtn.Size = UDim2.new(0.48, -5, 0, 40)
+endNowBtn.Text = "⚡ END RAID NOW"
+endNowBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+endNowBtn.TextColor3 = Color3.new(1, 1, 1)
+endNowBtn.Font = Enum.Font.GothamBold
+endNowBtn.TextSize = 14
+endNowBtn.Parent = gemFarmPanel
+
+local refreshWaveBtn = Instance.new("TextButton")
+refreshWaveBtn.Size = UDim2.new(0.48, -5, 0, 40)
+refreshWaveBtn.Position = UDim2.new(0.52, 0, 0, 0)
+refreshWaveBtn.Text = "🔄 REFRESH WAVE"
+refreshWaveBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
+refreshWaveBtn.TextColor3 = Color3.new(1, 1, 1)
+refreshWaveBtn.Font = Enum.Font.GothamBold
+refreshWaveBtn.TextSize = 14
+refreshWaveBtn.Parent = gemFarmPanel
+
+-- CONNECT BUTTON FUNCTIONS
 setWaveBtn.MouseButton1Click:Connect(function()
     local newWave = tonumber(targetWaveInput.Text)
     if newWave and newWave > 0 then
@@ -915,35 +970,6 @@ setWaveBtn.MouseButton1Click:Connect(function()
     end
 end)
 
-local autoGemFarmToggle = Instance.new("TextButton")
-autoGemFarmToggle.Size = UDim2.new(1, -20, 0, 55)
-autoGemFarmToggle.Text = "💎 AUTO GEM FARM: OFF"
-autoGemFarmToggle.BackgroundColor3 = Color3.fromRGB(70, 50, 50)
-autoGemFarmToggle.TextColor3 = Color3.new(1, 1, 1)
-autoGemFarmToggle.Font = Enum.Font.GothamBold
-autoGemFarmToggle.TextSize = 16
-autoGemFarmToggle.Parent = gemFarmPanel
-
-autoGemFarmToggle.MouseButton1Click:Connect(function()
-    toggleAutoGemFarm()
-end)
-
-local autoGemFarmStatus = Instance.new("TextLabel")
-autoGemFarmStatus.Size = UDim2.new(1, -20, 0, 40)
-autoGemFarmStatus.Text = "Auto Gem Farm: Ready"
-autoGemFarmStatus.TextColor3 = Color3.new(0.7, 0.7, 0.7)
-autoGemFarmStatus.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-autoGemFarmStatus.Parent = gemFarmPanel
-
-local endNowBtn = Instance.new("TextButton")
-endNowBtn.Size = UDim2.new(0.48, -5, 0, 40)
-endNowBtn.Text = "⚡ END RAID NOW"
-endNowBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-endNowBtn.TextColor3 = Color3.new(1, 1, 1)
-endNowBtn.Font = Enum.Font.GothamBold
-endNowBtn.TextSize = 14
-endNowBtn.Parent = gemFarmPanel
-
 endNowBtn.MouseButton1Click:Connect(function()
     endCurrentRaid()
     autoGemFarmStatus.Text = "Raid ended manually"
@@ -954,16 +980,6 @@ endNowBtn.MouseButton1Click:Connect(function()
         autoGemFarmStatus.Text = "Auto Gem Farm: Ready"
     end
 end)
-
-local refreshWaveBtn = Instance.new("TextButton")
-refreshWaveBtn.Size = UDim2.new(0.48, -5, 0, 40)
-refreshWaveBtn.Position = UDim2.new(0.52, 0, 0, 0)
-refreshWaveBtn.Text = "🔄 REFRESH WAVE"
-refreshWaveBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
-refreshWaveBtn.TextColor3 = Color3.new(1, 1, 1)
-refreshWaveBtn.Font = Enum.Font.GothamBold
-refreshWaveBtn.TextSize = 14
-refreshWaveBtn.Parent = gemFarmPanel
 
 refreshWaveBtn.MouseButton1Click:Connect(function()
     local wave = getCurrentWave()
