@@ -84,7 +84,7 @@ closeBtn.Parent = mainFrame
 
 local autoEndActive = false
 local currentWave = 0
-local stableWave = 0
+local lastLoggedWave = 0
 local waveHistory = {}
 local raidStopRemote = nil
 
@@ -116,16 +116,17 @@ local function addToHistory(wave)
         wave = wave,
         time = os.date("%H:%M:%S")
     })
-    while #waveHistory > 20 do
+    while #waveHistory > 30 do
         table.remove(waveHistory)
     end
 end
 
-local function getStableWave()
+-- Use the working method from your log - get the HIGHEST wave detected
+local function getCurrentWave()
     local playerGui = player:FindFirstChild("PlayerGui")
     if not playerGui then return nil end
     
-    local waves = {}
+    local highestWave = 0
     
     local function search(instance)
         for _, child in pairs(instance:GetChildren()) do
@@ -134,8 +135,8 @@ local function getStableWave()
                 local num = text:match("Wave%s*(%d+)") or text:match("WAVE%s*(%d+)") or text:match("wave%s*(%d+)")
                 if num then
                     local w = tonumber(num)
-                    if w and w > 0 and w < 500 then
-                        table.insert(waves, w)
+                    if w and w > highestWave and w < 500 then
+                        highestWave = w
                     end
                 end
             end
@@ -145,24 +146,17 @@ local function getStableWave()
     
     search(playerGui)
     
-    if #waves == 0 then return nil end
-    
-    table.sort(waves)
-    local highest = waves[#waves]
-    local secondHighest = waves[#waves - 1] or 0
-    
-    if highest - secondHighest > 50 then
-        return highest
-    else
-        return secondHighest
+    if highestWave > 0 then
+        return highestWave
     end
+    return nil
 end
 
 spawn(function()
     findRaidStop()
     
     while true do
-        local wave = getStableWave()
+        local wave = getCurrentWave()
         
         if wave and wave ~= currentWave then
             currentWave = wave
@@ -188,7 +182,7 @@ spawn(function()
             end
         end
         
-        wait(0.5)
+        wait(0.3)
     end
 end)
 
