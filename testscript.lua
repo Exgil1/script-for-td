@@ -1,4 +1,4 @@
---// COMPLETE TD AUTO FARM - WITH WORKING AUTO GEM FARM (CONTINUOUS MODE)
+--// COMPLETE TD AUTO FARM - WITH WORKING AUTO GEM FARM (CONTINUOUS MODE - FIXED)
 pcall(function()
 
 --// SERVICES
@@ -273,7 +273,7 @@ local function stopAutoChallenge()
     if countdownDisplay then countdownDisplay.Text = "---" end
 end
 
---// AUTO GEM FARM FUNCTIONS (CONTINUOUS MODE)
+--// AUTO GEM FARM FUNCTIONS (FIXED CONTINUOUS MODE WITH SPAM)
 local function getCurrentWave()
     local playerGui = player:FindFirstChild("PlayerGui")
     if not playerGui then return nil end
@@ -299,9 +299,13 @@ local function getCurrentWave()
 end
 
 local function endCurrentRaid()
-    pcall(function()
-        raidStop:FireServer()
-    end)
+    -- SPAM THE END REMOTE FOR 2 SECONDS TO MAKE SURE IT WORKS
+    for i = 1, 10 do
+        pcall(function()
+            raidStop:FireServer()
+        end)
+        task.wait(0.2)
+    end
 end
 
 local function startAutoGemFarm()
@@ -313,23 +317,36 @@ local function startAutoGemFarm()
     autoGemFarmActive = true
     
     autoGemFarmThread = task.spawn(function()
-        local raidEnded = false
-        local targetReachedThisRaid = false
+        local targetReachedForCurrentRaid = false
+        local lastWave = 0
+        local raidActive = false
+        local waitingForNewRaid = false
         
         while autoGemFarmActive do
             local wave = getCurrentWave()
             
             if wave and wave > 0 then
-                -- Reset flags when new raid starts (wave resets to low number)
-                if wave < 10 and raidEnded then
-                    raidEnded = false
-                    targetReachedThisRaid = false
+                -- Reset waiting flag when wave is detected
+                if waitingForNewRaid then
+                    waitingForNewRaid = false
                     if autoGemFarmStatus then
                         autoGemFarmStatus.Text = string.format("New raid detected! Target: %d", targetEndWave)
+                        autoGemFarmStatus.TextColor3 = Color3.new(0.3, 1, 0.3)
                     end
                 end
                 
-                if wave ~= currentWave then
+                -- Check if this is a new raid (wave reset or crossed threshold)
+                if not raidActive or (lastWave > 50 and wave < 20) then
+                    raidActive = true
+                    targetReachedForCurrentRaid = false
+                    if autoGemFarmStatus then
+                        autoGemFarmStatus.Text = string.format("New raid detected! Target: %d", targetEndWave)
+                        autoGemFarmStatus.TextColor3 = Color3.new(0.3, 1, 0.3)
+                    end
+                end
+                
+                if wave ~= lastWave then
+                    lastWave = wave
                     currentWave = wave
                     
                     if currentWaveDisplay then
@@ -345,26 +362,36 @@ local function startAutoGemFarm()
                         end
                     end
                     
-                    -- Check if target reached this raid
-                    if wave >= targetEndWave and not targetReachedThisRaid then
-                        targetReachedThisRaid = true
+                    -- Check if target reached and not already ended this raid
+                    if wave >= targetEndWave and not targetReachedForCurrentRaid then
+                        targetReachedForCurrentRaid = true
+                        raidActive = false
+                        waitingForNewRaid = true
                         
                         if autoGemFarmStatus then
-                            autoGemFarmStatus.Text = "Target reached! Ending raid..."
+                            autoGemFarmStatus.Text = "Target reached! Ending raid (spamming end)..."
+                            autoGemFarmStatus.TextColor3 = Color3.new(1, 0.8, 0)
                         end
                         
-                        -- End the raid
+                        -- SPAM THE END REMOTE
                         endCurrentRaid()
-                        raidEnded = true
                         
                         if autoGemFarmStatus then
                             autoGemFarmStatus.Text = string.format("Raid ended at wave %d - Waiting for next raid", wave)
                             task.wait(3)
                             if autoGemFarmActive then
                                 autoGemFarmStatus.Text = string.format("Ready for next raid (Target: %d)", targetEndWave)
+                                autoGemFarmStatus.TextColor3 = Color3.new(0.3, 1, 0.3)
                             end
                         end
+                        
+                        -- Reset last wave to avoid duplicate detection
+                        lastWave = 0
                     end
+                end
+            else
+                if raidActive then
+                    raidActive = false
                 end
             end
             
@@ -988,23 +1015,29 @@ end)
 
 testEndBtn.MouseButton1Click:Connect(function()
     autoGemFarmStatus.Text = "Testing raid stop..."
-    pcall(function()
-        raidStop:FireServer()
-        autoGemFarmStatus.Text = "Test: Raid stop executed!"
-        task.wait(2)
-        if autoGemFarmActive then
-            autoGemFarmStatus.Text = string.format("Monitoring - Will end raids at wave %d", targetEndWave)
-        else
-            autoGemFarmStatus.Text = "Auto Gem Farm: Ready (Toggle ON to start)"
-        end
-    end)
+    for i = 1, 10 do
+        pcall(function()
+            raidStop:FireServer()
+        end)
+        task.wait(0.2)
+    end
+    autoGemFarmStatus.Text = "Test: Raid stop executed (spammed 10x)"
+    task.wait(2)
+    if autoGemFarmActive then
+        autoGemFarmStatus.Text = string.format("Monitoring - Will end raids at wave %d", targetEndWave)
+    else
+        autoGemFarmStatus.Text = "Auto Gem Farm: Ready (Toggle ON to start)"
+    end
 end)
 
 endNowBtn.MouseButton1Click:Connect(function()
-    pcall(function()
-        raidStop:FireServer()
-    end)
-    autoGemFarmStatus.Text = "Raid ended manually"
+    for i = 1, 10 do
+        pcall(function()
+            raidStop:FireServer()
+        end)
+        task.wait(0.2)
+    end
+    autoGemFarmStatus.Text = "Raid ended manually (spammed 10x)"
     task.wait(2)
     if autoGemFarmActive then
         autoGemFarmStatus.Text = string.format("Monitoring - Will end raids at wave %d", targetEndWave)
@@ -1047,7 +1080,7 @@ autoGemFarmToggle.MouseButton1Click:Connect(function()
         startAutoGemFarm()
         autoGemFarmToggle.Text = "💎 AUTO GEM FARM: ON"
         autoGemFarmToggle.BackgroundColor3 = Color3.fromRGB(50, 100, 50)
-        autoGemFarmStatus.Text = string.format("Monitoring - Will end raids at wave %d", targetEndWave)
+        autoGemFarmStatus.Text = string.format("Monitoring - Will end raids at wave %d (spams end remote)", targetEndWave)
         autoGemFarmStatus.TextColor3 = Color3.new(0.3, 1, 0.3)
     end
     autoSaveConfig()
@@ -1270,7 +1303,7 @@ local savedConfig = nil
 
 local function autoSaveConfig()
     local config = {
-        version = 9,
+        version = 11,
         savedAt = os.date("%Y-%m-%d %H:%M:%S"),
         challengeOrder = {},
         selectedItems = {},
@@ -1428,7 +1461,7 @@ resetBtn.MouseButton1Click:Connect(function() resetToDefault() end)
 
 exportBtn.MouseButton1Click:Connect(function()
     local config = {
-        version = 9,
+        version = 11,
         savedAt = os.date("%Y-%m-%d %H:%M:%S"),
         challengeOrder = {},
         selectedItems = {},
@@ -1502,7 +1535,7 @@ print("=== TD AUTO FARM LOADED ===")
 print("✅ BUILD - Mega Raid & Raft Raid")
 print("✅ BUY - Auto buy towers (NO DELAY)")
 print("✅ CHALLENGE - Smart auto-challenge")
-print("✅ GEM FARM - Auto end raids at wave (STAYS ON - Continuous mode)")
+print("✅ GEM FARM - Auto end raids continuously (SPAMS END REMOTE 10x)")
 print("✅ SCHEDULE - Mega (:00), Raft (:15 & :45)")
 print("✅ CONFIG - Auto-save/load settings")
 
