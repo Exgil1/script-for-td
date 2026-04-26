@@ -439,27 +439,31 @@ local function executeMegaBuild()
     pcall(function() joinCommunityRaid:FireServer() end)
     task.wait(1)
     
+    -- Hidden Tesla (replaced Wall)
     local args1 = {
-        "Wall{d0bfa0d3-11c2-4606-b175-ecd58b9878f0}",
-        {Rotation = 90, Position = vector.create(1529.6004638671875, 8.505999565124512, 1189.6143798828125)}
+        "Hidden Tesla{3f1f7d15-040a-4de8-a561-e0807416d485}",
+        {Rotation = 90, Position = vector.create(1523.6004638671875, 8.505999565124512, 1197.6143798828125)}
     }
     game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("CBuildDefense"):InvokeServer(unpack(args1))
     task.wait(0.5)
     
+    -- Minigun (replaced Inferno Beam)
     local args2 = {
-        "Flamespitter{5c2cf563-40ae-4c75-9881-9e97f9b8cd66}",
-        {Rotation = 90, Position = vector.create(1523.6004638671875, 8.505999565124512, 1197.6143798828125)}
+        "Minigun{42ca3c4f-3f71-42dc-90f3-dca5515e5fbb}",
+        {Rotation = 90, Position = vector.create(1515.6004638671875, 8.505999565124512, 1209.6143798828125)}
     }
     game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("CBuildDefense"):InvokeServer(unpack(args2))
     task.wait(0.5)
     
+    -- Octogun (replaced Flamespitter)
     local args3 = {
-        "Inferno Beam{538ce489-08e2-4a0e-9a7b-24792793dbb6}",
-        {Rotation = 90, Position = vector.create(1531.6004638671875, 8.505999565124512, 1199.6143798828125)}
+        "Octogun{445eda10-78d3-4e1a-9f16-c5c4c5ea4ead}",
+        {Rotation = 90, Position = vector.create(1527.6004638671875, 8.505999565124512, 1187.6143798828125)}
     }
     game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("CBuildDefense"):InvokeServer(unpack(args3))
     task.wait(0.5)
     
+    -- Railgun (kept as is)
     local args4 = {
         "Railgun{cba7bbf3-aaab-4cde-92df-67ac6c4ebda0}",
         {Rotation = 90, Position = vector.create(1527.6004638671875, 8.505999565124512, 1209.6143798828125)}
@@ -477,6 +481,7 @@ local function executeRaftBuild()
     pcall(function() joinRaftRaid:FireServer() end)
     task.wait(1)
     
+    -- Hidden Tesla
     local args1 = {
         "Hidden Tesla{3f1f7d15-040a-4de8-a561-e0807416d485}",
         {Rotation = 90, Position = vector.create(1523.5994873046875, 6.705000400543213, -1645.33642578125)}
@@ -484,13 +489,15 @@ local function executeRaftBuild()
     game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("RBuildDefense"):InvokeServer(unpack(args1))
     task.wait(0.5)
     
+    -- Octogun (replaced Flamespitter)
     local args2 = {
-        "Flamespitter{5c2cf563-40ae-4c75-9881-9e97f9b8cd66}",
-        {Rotation = 90, Position = vector.create(1523.5994873046875, 6.705000400543213, -1637.33642578125)}
+        "Octogun{445eda10-78d3-4e1a-9f16-c5c4c5ea4ead}",
+        {Rotation = 90, Position = vector.create(1523.5994873046875, 6.705000400543213, -1631.33642578125)}
     }
     game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("RBuildDefense"):InvokeServer(unpack(args2))
     task.wait(0.5)
     
+    -- Minigun
     local args3 = {
         "Minigun{42ca3c4f-3f71-42dc-90f3-dca5515e5fbb}",
         {Rotation = 90, Position = vector.create(1513.5994873046875, 6.705000400543213, -1619.33642578125)}
@@ -498,6 +505,7 @@ local function executeRaftBuild()
     game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Functions"):WaitForChild("RBuildDefense"):InvokeServer(unpack(args3))
     task.wait(0.5)
     
+    -- Railgun
     local args4 = {
         "Railgun{cba7bbf3-aaab-4cde-92df-67ac6c4ebda0}",
         {Rotation = 90, Position = vector.create(1525.5994873046875, 6.705000400543213, -1619.33642578125)}
