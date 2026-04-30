@@ -590,4 +590,11 @@ testRemote()
 print("=== AUTO MINER v2 LOADED ===")
 print("Remote found:", miningRemote ~= nil)
 print("Default range: " .. currentRange)
-print("Default speed: " 
+print("Default speed: " .. string.format("%.0f", 1/currentDelay) .. "/sec")
+print("Press START to begin")
+print("============================")
+
+-- Initial asteroid scan info
+task.wait(1)
+local testScan = getAllAsteroids()
+debugLabel.Text = string.format("🔍 Found %d asteroids in Plot1", #testScan)
