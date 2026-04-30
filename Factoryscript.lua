@@ -1,69 +1,55 @@
--- Mobile Auto Aura Miner with GUI
+-- Working Auto Miner for Mobile (Delta Executor)
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 
 -- Configuration
-local AURA_RANGE = 35
-local MINE_INTERVAL = 0.05
-local minedAsteroids = {}
+local MINE_RANGE = 30 -- How close you need to be to mine
+local MINE_DELAY = 0.15 -- Delay between mining (lower = faster)
+local minedAsteroids = {} -- Track recently mined asteroids
 
--- Get required services
+-- Get the mining remote (empty string name)
 local Communication = ReplicatedStorage:WaitForChild("Communication")
 local Functions = Communication:WaitForChild("Functions")
+local miningRemote = Functions:FindFirstChild("") -- The empty string remote
 
--- Find mining remote
-local miningRemote = nil
-local possibleRemoteNames = { "", "MineAsteroid", "MineOre", "Mine", "Harvest", "Collect", "Break", "ExtractOre", "Gather" }
-
-for _, name in pairs(possibleRemoteNames) do
-    local remote = Functions:FindFirstChild(name)
-    if remote then
-        miningRemote = remote
-        break
-    end
+if not miningRemote then
+    warn("Mining remote not found!")
 end
 
-if not miningRemote and #Functions:GetChildren() > 0 then
-    miningRemote = Functions:GetChildren()[1]
-end
-
--- GUI Variables
+-- GUI Setup
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "AutoMinerGUI"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = game:GetService("CoreGui")
 
 local isMining = false
-local currentRange = AURA_RANGE
-local currentSpeed = MINE_INTERVAL
+local currentRange = MINE_RANGE
+local currentDelay = MINE_DELAY
+local totalMined = 0
 
 -- Create Main Frame
 local mainFrame = Instance.new("Frame")
-mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 200, 0, 300)
-mainFrame.Position = UDim2.new(0, 20, 0, 100)
-mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+mainFrame.Size = UDim2.new(0, 220, 0, 350)
+mainFrame.Position = UDim2.new(0.5, -110, 0.3, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
 mainFrame.BackgroundTransparency = 0.1
 mainFrame.BorderSizePixel = 0
-mainFrame.ClipsDescendants = true
 mainFrame.Parent = screenGui
 
--- Corner rounding
 local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(0, 12)
 corner.Parent = mainFrame
 
--- Title Bar
+-- Title Bar (for dragging)
 local titleBar = Instance.new("Frame")
 titleBar.Size = UDim2.new(1, 0, 0, 40)
-titleBar.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+titleBar.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 titleBar.BackgroundTransparency = 0.1
 titleBar.BorderSizePixel = 0
 titleBar.Parent = mainFrame
@@ -75,19 +61,18 @@ titleCorner.Parent = titleBar
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 1, 0)
 title.BackgroundTransparency = 1
-title.Text = "⚡ AUTO AURA MINER"
+title.Text = "⛏️ AUTO ASTEROID MINER"
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
 title.TextSize = 16
 title.Font = Enum.Font.GothamBold
-title.TextXAlignment = Enum.TextXAlignment.Center
 title.Parent = titleBar
 
 -- Close Button
 local closeBtn = Instance.new("TextButton")
 closeBtn.Size = UDim2.new(0, 30, 0, 30)
 closeBtn.Position = UDim2.new(1, -35, 0, 5)
-closeBtn.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
-closeBtn.BackgroundTransparency = 0.3
+closeBtn.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
+closeBtn.BackgroundTransparency = 0.2
 closeBtn.Text = "✕"
 closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 closeBtn.TextSize = 18
@@ -98,10 +83,10 @@ local closeCorner = Instance.new("UICorner")
 closeCorner.CornerRadius = UDim.new(0, 6)
 closeCorner.Parent = closeBtn
 
--- Toggle Button (Main Control)
+-- Toggle Button
 local toggleBtn = Instance.new("TextButton")
 toggleBtn.Size = UDim2.new(0.8, 0, 0, 50)
-toggleBtn.Position = UDim2.new(0.1, 0, 0.18, 0)
+toggleBtn.Position = UDim2.new(0.1, 0, 0.16, 0)
 toggleBtn.BackgroundColor3 = Color3.fromRGB(76, 175, 80)
 toggleBtn.Text = "START MINING"
 toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -115,120 +100,109 @@ toggleCorner.Parent = toggleBtn
 
 -- Status Label
 local statusLabel = Instance.new("TextLabel")
-statusLabel.Size = UDim2.new(0.9, 0, 0, 30)
-statusLabel.Position = UDim2.new(0.05, 0, 0.35, 0)
+statusLabel.Size = UDim2.new(0.9, 0, 0, 25)
+statusLabel.Position = UDim2.new(0.05, 0, 0.32, 0)
 statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "Status: OFF"
+statusLabel.Text = "Status: ❌ OFF"
 statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
 statusLabel.TextSize = 14
-statusLabel.Font = Enum.Font.Gotham
+statusLabel.Font = Enum.Font.GothamBold
 statusLabel.Parent = mainFrame
 
 -- Range Slider Label
 local rangeLabel = Instance.new("TextLabel")
 rangeLabel.Size = UDim2.new(0.9, 0, 0, 20)
-rangeLabel.Position = UDim2.new(0.05, 0, 0.45, 0)
+rangeLabel.Position = UDim2.new(0.05, 0, 0.42, 0)
 rangeLabel.BackgroundTransparency = 1
-rangeLabel.Text = "Range: " .. currentRange .. " studs"
+rangeLabel.Text = "📏 Range: " .. currentRange .. " studs"
 rangeLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 rangeLabel.TextSize = 12
 rangeLabel.Font = Enum.Font.Gotham
 rangeLabel.TextXAlignment = Enum.TextXAlignment.Left
 rangeLabel.Parent = mainFrame
 
--- Range Slider
-local rangeSlider = Instance.new("Frame")
-rangeSlider.Size = UDim2.new(0.8, 0, 0, 4)
-rangeSlider.Position = UDim2.new(0.1, 0, 0.51, 0)
-rangeSlider.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
-rangeSlider.BorderSizePixel = 0
-rangeSlider.Parent = mainFrame
+-- Range Slider Background
+local rangeSliderBg = Instance.new("Frame")
+rangeSliderBg.Size = UDim2.new(0.8, 0, 0, 4)
+rangeSliderBg.Position = UDim2.new(0.1, 0, 0.48, 0)
+rangeSliderBg.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+rangeSliderBg.BorderSizePixel = 0
+rangeSliderBg.Parent = mainFrame
 
 local rangeSliderCorner = Instance.new("UICorner")
 rangeSliderCorner.CornerRadius = UDim.new(1, 0)
-rangeSliderCorner.Parent = rangeSlider
+rangeSliderCorner.Parent = rangeSliderBg
 
 local rangeFill = Instance.new("Frame")
-rangeFill.Size = UDim2.new(0.5, 0, 1, 0)
+rangeFill.Size = UDim2.new((currentRange - 10) / 40, 0, 1, 0)
 rangeFill.BackgroundColor3 = Color3.fromRGB(76, 175, 80)
 rangeFill.BorderSizePixel = 0
-rangeFill.Parent = rangeSlider
+rangeFill.Parent = rangeSliderBg
 
 local rangeFillCorner = Instance.new("UICorner")
 rangeFillCorner.CornerRadius = UDim.new(1, 0)
 rangeFillCorner.Parent = rangeFill
 
-local rangeKnob = Instance.new("TextButton")
-rangeKnob.Size = UDim2.new(0, 20, 0, 20)
-rangeKnob.Position = UDim2.new(0.5, -10, -8, 0)
-rangeKnob.BackgroundColor3 = Color3.fromRGB(76, 175, 80)
-rangeKnob.Text = ""
-rangeKnob.Parent = rangeSlider
-
-local rangeKnobCorner = Instance.new("UICorner")
-rangeKnobCorner.CornerRadius = UDim.new(1, 0)
-rangeKnobCorner.Parent = rangeKnob
-
 -- Speed Slider Label
 local speedLabel = Instance.new("TextLabel")
 speedLabel.Size = UDim2.new(0.9, 0, 0, 20)
-speedLabel.Position = UDim2.new(0.05, 0, 0.6, 0)
+speedLabel.Position = UDim2.new(0.05, 0, 0.58, 0)
 speedLabel.BackgroundTransparency = 1
-speedLabel.Text = "Speed: " .. string.format("%.2f", 1/currentSpeed) .. " mines/sec"
+speedLabel.Text = "⚡ Speed: " .. string.format("%.0f", 1/currentDelay) .. " mines/sec"
 speedLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 speedLabel.TextSize = 12
 speedLabel.Font = Enum.Font.Gotham
 speedLabel.TextXAlignment = Enum.TextXAlignment.Left
 speedLabel.Parent = mainFrame
 
--- Speed Slider
-local speedSlider = Instance.new("Frame")
-speedSlider.Size = UDim2.new(0.8, 0, 0, 4)
-speedSlider.Position = UDim2.new(0.1, 0, 0.66, 0)
-speedSlider.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
-speedSlider.BorderSizePixel = 0
-speedSlider.Parent = mainFrame
+-- Speed Slider Background
+local speedSliderBg = Instance.new("Frame")
+speedSliderBg.Size = UDim2.new(0.8, 0, 0, 4)
+speedSliderBg.Position = UDim2.new(0.1, 0, 0.64, 0)
+speedSliderBg.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+speedSliderBg.BorderSizePixel = 0
+speedSliderBg.Parent = mainFrame
 
 local speedSliderCorner = Instance.new("UICorner")
 speedSliderCorner.CornerRadius = UDim.new(1, 0)
-speedSliderCorner.Parent = speedSlider
+speedSliderCorner.Parent = speedSliderBg
 
 local speedFill = Instance.new("Frame")
-speedFill.Size = UDim2.new(0.5, 0, 1, 0)
+speedFill.Size = UDim2.new(1 - ((currentDelay - 0.05) / 0.45), 0, 1, 0)
 speedFill.BackgroundColor3 = Color3.fromRGB(33, 150, 243)
 speedFill.BorderSizePixel = 0
-speedFill.Parent = speedSlider
+speedFill.Parent = speedSliderBg
 
 local speedFillCorner = Instance.new("UICorner")
 speedFillCorner.CornerRadius = UDim.new(1, 0)
 speedFillCorner.Parent = speedFill
 
-local speedKnob = Instance.new("TextButton")
-speedKnob.Size = UDim2.new(0, 20, 0, 20)
-speedKnob.Position = UDim2.new(0.5, -10, -8, 0)
-speedKnob.BackgroundColor3 = Color3.fromRGB(33, 150, 243)
-speedKnob.Text = ""
-speedKnob.Parent = speedSlider
-
-local speedKnobCorner = Instance.new("UICorner")
-speedKnobCorner.CornerRadius = UDim.new(1, 0)
-speedKnobCorner.Parent = speedKnob
-
 -- Stats Label
 local statsLabel = Instance.new("TextLabel")
-statsLabel.Size = UDim2.new(0.9, 0, 0, 40)
-statsLabel.Position = UDim2.new(0.05, 0, 0.75, 0)
+statsLabel.Size = UDim2.new(0.9, 0, 0, 50)
+statsLabel.Position = UDim2.new(0.05, 0, 0.73, 0)
 statsLabel.BackgroundTransparency = 1
-statsLabel.Text = "Mined: 0\nNearby: 0"
+statsLabel.Text = "📊 Mined: 0\n🪨 Nearby: 0"
 statsLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
 statsLabel.TextSize = 11
 statsLabel.Font = Enum.Font.Gotham
 statsLabel.TextXAlignment = Enum.TextXAlignment.Left
 statsLabel.Parent = mainFrame
 
--- Drag functionality
+-- Instructions Label
+local instructionsLabel = Instance.new("TextLabel")
+instructionsLabel.Size = UDim2.new(0.9, 0, 0, 30)
+instructionsLabel.Position = UDim2.new(0.05, 0, 0.88, 0)
+instructionsLabel.BackgroundTransparency = 1
+instructionsLabel.Text = "💡 Stand near asteroids\nto auto-mine them!"
+instructionsLabel.TextColor3 = Color3.fromRGB(100, 100, 120)
+instructionsLabel.TextSize = 10
+instructionsLabel.Font = Enum.Font.Gotham
+instructionsLabel.TextXAlignment = Enum.TextXAlignment.Left
+instructionsLabel.Parent = mainFrame
+
+-- Dragging functionality
 local dragging = false
-local dragInput
 local dragStart
 local startPos
 
@@ -246,87 +220,76 @@ titleBar.InputBegan:Connect(function(input)
     end
 end)
 
-titleBar.InputChanged:Connect(function(input)
+UserInputService.InputChanged:Connect(function(input)
     if dragging and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
         local delta = input.Position - dragStart
         mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
     end
 end)
 
--- Slider functions
-local function updateRangeSlider(input)
-    local relativeX = math.clamp((input.Position.X - rangeSlider.AbsolutePosition.X) / rangeSlider.AbsoluteSize.X, 0, 1)
-    rangeFill.Size = UDim2.new(relativeX, 0, 1, 0)
-    rangeKnob.Position = UDim2.new(relativeX, -10, -8, 0)
-    currentRange = math.floor(relativeX * 80 + 10)
-    rangeLabel.Text = "Range: " .. currentRange .. " studs"
+-- Slider update functions (for touch)
+local function updateRange(value)
+    currentRange = math.floor(10 + (value * 40))
+    rangeFill.Size = UDim2.new(value, 0, 1, 0)
+    rangeLabel.Text = "📏 Range: " .. currentRange .. " studs"
 end
 
-local function updateSpeedSlider(input)
-    local relativeX = math.clamp((input.Position.X - speedSlider.AbsolutePosition.X) / speedSlider.AbsoluteSize.X, 0, 1)
-    speedFill.Size = UDim2.new(relativeX, 0, 1, 0)
-    speedKnob.Position = UDim2.new(relativeX, -10, -8, 0)
-    currentSpeed = math.max(0.01, (1 - relativeX) * 0.2 + 0.01)
-    speedLabel.Text = "Speed: " .. string.format("%.1f", 1/currentSpeed) .. " mines/sec"
+local function updateSpeed(value)
+    currentDelay = 0.05 + ((1 - value) * 0.45)
+    speedFill.Size = UDim2.new(value, 0, 1, 0)
+    speedLabel.Text = "⚡ Speed: " .. string.format("%.0f", 1/currentDelay) .. " mines/sec"
 end
 
-rangeKnob.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-        local moveConnection
-        local endConnection
-        
-        moveConnection = input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.Change then
-                updateRangeSlider(input)
-            end
-        end)
-        
-        endConnection = input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                moveConnection:Disconnect()
-                endConnection:Disconnect()
-            end
-        end)
+-- Touch handlers for sliders
+local function setupSlider(sliderBg, fill, callback)
+    local sliderBtn = Instance.new("TextButton")
+    sliderBtn.Size = UDim2.new(0, 20, 0, 20)
+    sliderBtn.Position = UDim2.new(fill.Size.X.Scale, -10, -8, 0)
+    sliderBtn.BackgroundColor3 = fill.BackgroundColor3
+    sliderBtn.Text = ""
+    sliderBtn.Parent = sliderBg
+    
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(1, 0)
+    btnCorner.Parent = sliderBtn
+    
+    local function updateFromInput(input)
+        local relativeX = math.clamp((input.Position.X - sliderBg.AbsolutePosition.X) / sliderBg.AbsoluteSize.X, 0, 1)
+        callback(relativeX)
+        sliderBtn.Position = UDim2.new(relativeX, -10, -8, 0)
     end
-end)
+    
+    sliderBtn.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch then
+            updateFromInput(input)
+            local connection
+            connection = input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.Change then
+                    updateFromInput(input)
+                elseif input.UserInputState == Enum.UserInputState.End then
+                    connection:Disconnect()
+                end
+            end)
+        end
+    end)
+end
 
-speedKnob.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-        local moveConnection
-        local endConnection
-        
-        moveConnection = input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.Change then
-                updateSpeedSlider(input)
-            end
-        end)
-        
-        endConnection = input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                moveConnection:Disconnect()
-                endConnection:Disconnect()
-            end
-        end)
-    end
-end)
+setupSlider(rangeSliderBg, rangeFill, updateRange)
+setupSlider(speedSliderBg, speedFill, updateSpeed)
 
--- Mining functions
+-- Mining Functions
 local function getPlayerPlot()
     local plots = workspace:FindFirstChild("Plots")
     if not plots then return nil end
     
-    for _, plot in pairs(plots:GetChildren()) do
-        local plotOwner = plot:FindFirstChild("Owner") or plot:FindFirstChild("ClaimedBy") or plot:FindFirstChild("PlotOwner")
-        if plotOwner and plotOwner.Value == player.Name then
-            return plot
-        end
-    end
+    -- Get Plot1 (since your script uses Plot1)
+    local plot = plots:FindFirstChild("Plot1")
+    if plot then return plot end
     
-    local playerPos = humanoidRootPart.Position
-    for _, plot in pairs(plots:GetChildren()) do
-        local plotPrimary = plot:FindFirstChild("Primary") or plot:FindFirstChildWhichIsA("BasePart")
-        if plotPrimary and (playerPos - plotPrimary.Position).Magnitude < 50 then
-            return plot
+    -- Fallback to any plot with player's name
+    for _, p in pairs(plots:GetChildren()) do
+        if p.Name:lower():find(player.Name:lower()) then
+            return p
         end
     end
     
@@ -341,122 +304,134 @@ local function getAsteroidsInRange(plot, range)
     local playerPos = humanoidRootPart.Position
     
     for _, asteroid in pairs(asteroids:GetChildren()) do
-        if minedAsteroids[asteroid.Name] and tick() - minedAsteroids[asteroid.Name] < 0.5 then
+        -- Skip if recently mined
+        if minedAsteroids[asteroid.Name] and tick() - minedAsteroids[asteroid.Name] < currentDelay then
             continue
         end
         
-        local primaryPart = asteroid:FindFirstChild("Primary") or asteroid:FindFirstChildWhichIsA("BasePart")
-        if primaryPart and primaryPart.Parent then
-            local distance = (playerPos - primaryPart.Position).Magnitude
-            if distance <= range then
-                table.insert(asteroidsInRange, {
-                    id = asteroid.Name,
-                    folder = asteroid,
-                    distance = distance
-                })
+        -- Check if asteroid still exists
+        if asteroid and asteroid.Parent then
+            local primaryPart = asteroid:FindFirstChild("Primary")
+            if not primaryPart then
+                primaryPart = asteroid:FindFirstChildWhichIsA("BasePart")
+            end
+            
+            if primaryPart and primaryPart.Parent then
+                local distance = (playerPos - primaryPart.Position).Magnitude
+                if distance <= range then
+                    table.insert(asteroidsInRange, {
+                        id = asteroid.Name,
+                        folder = asteroid,
+                        distance = distance
+                    })
+                end
             end
         end
     end
     
+    -- Sort by distance
     table.sort(asteroidsInRange, function(a, b) return a.distance < b.distance end)
     return asteroidsInRange
 end
 
-local function mineAsteroid(plot, asteroidId)
+local function mineAsteroid(plot, asteroidFolder)
     if not miningRemote then return false end
     
-    local asteroids = plot:FindFirstChild("Asteroids")
-    if not asteroids then return false end
-    
-    local asteroidFolder = asteroids:FindFirstChild(asteroidId)
-    if not asteroidFolder or not asteroidFolder.Parent then return false end
-    
-    pcall(function()
-        if miningRemote.Name == "" then
-            miningRemote:FireServer(plot, asteroidFolder)
-        else
-            miningRemote:FireServer(plot, asteroidFolder)
-        end
+    -- Use the exact same method as your working manual script
+    local success = pcall(function()
+        local args = {plot, asteroidFolder}
+        miningRemote:InvokeServer(unpack(args))
     end)
     
-    minedAsteroids[asteroidId] = tick()
-    return true
+    if success then
+        minedAsteroids[asteroidFolder.Name] = tick()
+        return true
+    end
+    
+    return false
 end
 
--- Mining loop
-local miningCoroutine = nil
-local totalMined = 0
+-- Main mining loop
+local miningLoop = nil
 local lastMineTime = 0
 
-local function startMining()
+local function startMiningLoop()
     while isMining and RunService.Heartbeat:Wait() do
-        if tick() - lastMineTime < currentSpeed then continue end
-        
-        local plot = getPlayerPlot()
-        if plot then
-            local nearbyAsteroids = getAsteroidsInRange(plot, currentRange)
-            
-            -- Update stats
-            statsLabel.Text = "Mined: " .. totalMined .. "\nNearby: " .. #nearbyAsteroids
-            
-            if #nearbyAsteroids > 0 then
-                for _, asteroid in pairs(nearbyAsteroids) do
-                    if not isMining then break end
-                    if mineAsteroid(plot, asteroid.id) then
-                        totalMined = totalMined + 1
-                        lastMineTime = tick()
-                        
-                        -- Visual feedback
-                        statusLabel.Text = "Status: MINING... (" .. totalMined .. ")"
-                        statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-                        
-                        task.wait(0.03)
-                    end
-                end
-            else
-                statusLabel.Text = "Status: IDLE (no asteroids)"
-                statusLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
-            end
-        else
-            statusLabel.Text = "Status: NO PLOT"
-            statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+        if tick() - lastMineTime < currentDelay then
+            continue
         end
         
-        -- Clean mined asteroids tracking
-        if tick() % 3 < 0.1 then
-            for id, time in pairs(minedAsteroids) do
-                if tick() - time > 2 then
-                    minedAsteroids[id] = nil
+        local plot = getPlayerPlot()
+        if not plot then
+            statusLabel.Text = "Status: ⚠️ NO PLOT FOUND"
+            statusLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
+            task.wait(1)
+            continue
+        end
+        
+        local nearbyAsteroids = getAsteroidsInRange(plot, currentRange)
+        
+        -- Update stats
+        statsLabel.Text = string.format("📊 Mined: %d\n🪨 Nearby: %d", totalMined, #nearbyAsteroids)
+        
+        if #nearbyAsteroids > 0 then
+            for _, asteroid in pairs(nearbyAsteroids) do
+                if not isMining then break end
+                
+                if mineAsteroid(plot, asteroid.folder) then
+                    totalMined = totalMined + 1
+                    lastMineTime = tick()
+                    statusLabel.Text = "Status: ✅ MINING... (" .. totalMined .. ")"
+                    statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+                    
+                    -- Visual flash effect
+                    toggleBtn.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+                    task.wait(0.05)
+                    if isMining then
+                        toggleBtn.BackgroundColor3 = Color3.fromRGB(244, 67, 54)
+                    end
                 end
+                
+                task.wait(0.02) -- Small delay between multiple asteroids
+            end
+        else
+            statusLabel.Text = "Status: 🔍 NO ASTEROIDS IN RANGE"
+            statusLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
+        end
+        
+        -- Clean old mined asteroids
+        for id, time in pairs(minedAsteroids) do
+            if tick() - time > 2 then
+                minedAsteroids[id] = nil
             end
         end
     end
 end
 
--- Toggle function
+-- Toggle mining on/off
 local function toggleMining()
     isMining = not isMining
     
     if isMining then
-        toggleBtn.Text = "STOP MINING"
+        toggleBtn.Text = "⏹️ STOP MINING"
         toggleBtn.BackgroundColor3 = Color3.fromRGB(244, 67, 54)
-        statusLabel.Text = "Status: ACTIVE"
+        statusLabel.Text = "Status: ✅ ACTIVE"
         statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
         
-        if miningCoroutine then
-            coroutine.close(miningCoroutine)
+        if miningLoop then
+            coroutine.close(miningLoop)
         end
-        miningCoroutine = coroutine.create(startMining)
-        coroutine.resume(miningCoroutine)
+        miningLoop = coroutine.create(startMiningLoop)
+        coroutine.resume(miningLoop)
     else
-        toggleBtn.Text = "START MINING"
+        toggleBtn.Text = "▶️ START MINING"
         toggleBtn.BackgroundColor3 = Color3.fromRGB(76, 175, 80)
-        statusLabel.Text = "Status: OFF"
+        statusLabel.Text = "Status: ❌ OFF"
         statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
         
-        if miningCoroutine then
-            coroutine.close(miningCoroutine)
-            miningCoroutine = nil
+        if miningLoop then
+            coroutine.close(miningLoop)
+            miningLoop = nil
         end
     end
 end
@@ -464,57 +439,39 @@ end
 -- Button connections
 toggleBtn.MouseButton1Click:Connect(toggleMining)
 closeBtn.MouseButton1Click:Connect(function()
+    isMining = false
     screenGui:Destroy()
-    if miningCoroutine then
-        coroutine.close(miningCoroutine)
+    if miningLoop then
+        coroutine.close(miningLoop)
     end
 end)
 
--- Initialize sliders
-local initialRange = (currentRange - 10) / 80
-rangeFill.Size = UDim2.new(initialRange, 0, 1, 0)
-rangeKnob.Position = UDim2.new(initialRange, -10, -8, 0)
+-- Character respawn handling
+player.CharacterAdded:Connect(function(newCharacter)
+    character = newCharacter
+    humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+    task.wait(1)
+end)
 
-local initialSpeed = 1 - ((currentSpeed - 0.01) / 0.2)
-speedFill.Size = UDim2.new(initialSpeed, 0, 1, 0)
-speedKnob.Position = UDim2.new(initialSpeed, -10, -8, 0)
-
--- Make GUI movable on mobile
-local function onTouch(input)
-    if input.UserInputType == Enum.UserInputType.Touch then
-        local hitPosition = input.Position
-        -- Check if hit position is within the mainFrame
-        if hitPosition.X >= mainFrame.AbsolutePosition.X and hitPosition.X <= mainFrame.AbsolutePosition.X + mainFrame.AbsoluteSize.X and
-           hitPosition.Y >= mainFrame.AbsolutePosition.Y and hitPosition.Y <= mainFrame.AbsolutePosition.Y + mainFrame.AbsoluteSize.Y then
-            -- Start dragging
-            local dragStart = input.Position
-            local startPos = mainFrame.Position
-            
-            local connection
-            connection = input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.Change then
-                    local delta = input.Position - dragStart
-                    mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-                elseif input.UserInputState == Enum.UserInputState.End then
-                    connection:Disconnect()
-                end
-            end)
-        end
-    end
-end
-
-UserInputService.InputBegan:Connect(onTouch)
-
--- Print startup message
-print("=== AUTO AURA MINER GUI LOADED ===")
+-- Print startup info
+print("=== AUTO MINER LOADED ===")
+print("Using remote: (empty string) - " .. (miningRemote and "FOUND ✓" or "NOT FOUND ✗"))
 print("Range: " .. currentRange .. " studs")
-print("Speed: " .. string.format("%.1f", 1/currentSpeed) .. " mines/sec")
-print("Press the START button to begin mining")
-print("=====================================")
+print("Speed: " .. string.format("%.0f", 1/currentDelay) .. " mines/sec")
+print("Press START to begin mining")
+print("=========================")
 
--- Flash animation for attention
-local flash = TweenService:Create(toggleBtn, TweenInfo.new(0.5, Enum.EasingStyle.Bounce), {BackgroundColor3 = Color3.fromRGB(100, 200, 100)})
-flash:Play()
-task.wait(0.5)
-flash:Cancel()
-toggleBtn.BackgroundColor3 = Color3.fromRGB(76, 175, 80)
+-- Success message on GUI
+local successMsg = Instance.new("TextLabel")
+successMsg.Size = UDim2.new(0.8, 0, 0, 20)
+successMsg.Position = UDim2.new(0.1, 0, 0.1, 0)
+successMsg.BackgroundTransparency = 1
+successMsg.Text = "✓ Ready to mine!"
+successMsg.TextColor3 = Color3.fromRGB(76, 175, 80)
+successMsg.TextSize = 11
+successMsg.Font = Enum.Font.Gotham
+successMsg.Parent = mainFrame
+
+task.delay(2, function()
+    successMsg:Destroy()
+end)
