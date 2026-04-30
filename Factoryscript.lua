@@ -1,4 +1,4 @@
--- Auto Ore Miner Script
+-- Auto Ore Miner Script - Fixed for your game
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
@@ -8,222 +8,230 @@ local character = player.Character or player.CharacterAdded:Wait()
 local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 
 -- Configuration
-local MINE_DELAY = 0.5 -- Delay between mining attempts (seconds)
-local CHECK_INTERVAL = 0.3 -- How often to check for ores (seconds)
-local MOVE_SPEED = 20 -- Speed to move to ore
-local TOOL_EQUIP_DELAY = 0.2 -- Delay after equipping tool
+local CHECK_INTERVAL = 0.2 -- How often to check for ores
+local MINE_DELAY = 0.5 -- Delay between mining attempts
+local RANGE = 15 -- Max range to mine ores
 
--- Get the mining tool (you may need to adjust this based on your game)
-local miningTool = nil
-for _, tool in pairs(player.Backpack:GetChildren()) do
-    if tool:IsA("Tool") and (tool.Name:lower():find("pick") or tool.Name:lower():find("drill") or tool.Name:lower():find("miner")) then
-        miningTool = tool
-        break
-    end
-end
+-- Get the mining function from your game
+local Communication = ReplicatedStorage:WaitForChild("Communication")
+local Functions = Communication:WaitForChild("Functions")
+local AsteroidClient = ReplicatedStorage:FindFirstChild("Framework")
+    :FindFirstChild("Client")
+    :FindFirstChild("Services")
+    :FindFirstChild("PlotService")
+    :FindFirstChild("AsteroidClient")
 
-if not miningTool then
-    warn("No mining tool found in backpack!")
-end
-
--- Function to get active plot
-local function getActivePlot()
+-- Function to get all asteroids in player's plot
+local function getPlayerPlot()
     local plots = workspace:FindFirstChild("Plots")
     if not plots then return nil end
     
-    -- Check all plots to see which one belongs to the player
+    -- Find your plot (adjust this based on how your game stores plot ownership)
     for _, plot in pairs(plots:GetChildren()) do
-        -- Check for plot ownership (adjust based on your game's system)
+        -- Check if this is your plot (you may need to adjust this condition)
         local plotOwner = plot:FindFirstChild("Owner") or plot:FindFirstChild("ClaimedBy")
         if plotOwner and plotOwner.Value == player.Name then
             return plot
         end
+        
+        -- Alternative: check if plot name contains your username
+        if plot.Name:lower():find(player.Name:lower()) then
+            return plot
+        end
     end
     
-    return nil
+    -- If no specific plot found, use Plot1 (or let user specify)
+    return plots:FindFirstChild("Plot1")
 end
 
--- Function to find ores in a plot
-local function findOresInPlot(plot)
-    local ores = {}
-    
+-- Function to get all asteroid children
+local function getAsteroidsInPlot(plot)
     local asteroids = plot:FindFirstChild("Asteroids")
-    if asteroids then
-        for _, asteroid in pairs(asteroids:GetChildren()) do
-            -- Check for ore (look for any part with ore-related properties)
-            -- Adjust these conditions based on your game's ore structure
-            if asteroid:IsA("BasePart") or asteroid:FindFirstChild("Hitbox") then
-                table.insert(ores, asteroid)
+    if not asteroids then return {} end
+    
+    local asteroidList = {}
+    for _, asteroid in pairs(asteroids:GetChildren()) do
+        -- Each asteroid is a folder with a unique ID
+        if asteroid:IsA("Folder") or asteroid:IsA("Model") then
+            -- Find the Primary part of the asteroid
+            local primaryPart = asteroid:FindFirstChild("Primary")
+            if not primaryPart then
+                -- If no Primary, find any BasePart
+                primaryPart = asteroid:FindFirstChildWhichIsA("BasePart")
             end
             
-            -- Check children for ore parts
-            for _, child in pairs(asteroid:GetDescendants()) do
-                if child:IsA("BasePart") and (child.Name:lower():find("ore") or child.Name:lower():find("rock") or child:FindFirstChild("Health")) then
-                    table.insert(ores, child)
-                end
+            if primaryPart then
+                table.insert(asteroidList, {
+                    id = asteroid.Name,  -- The unique ID string
+                    part = primaryPart,
+                    folder = asteroid
+                })
             end
         end
     end
     
-    return ores
+    return asteroidList
 end
 
--- Function to get closest ore
-local function getClosestOre(ores, currentPosition)
+-- Function to get closest asteroid
+local function getClosestAsteroid(asteroids)
     local closest = nil
     local closestDistance = math.huge
+    local currentPos = humanoidRootPart.Position
     
-    for _, ore in pairs(ores) do
-        local orePosition = ore.Position
-        local distance = (currentPosition - orePosition).Magnitude
-        
-        if distance < closestDistance then
+    for _, asteroid in pairs(asteroids) do
+        local distance = (currentPos - asteroid.part.Position).Magnitude
+        if distance < closestDistance and distance <= RANGE then
             closestDistance = distance
-            closest = ore
+            closest = asteroid
         end
     end
     
     return closest, closestDistance
 end
 
--- Function to move to ore
-local function moveToOre(ore)
-    local orePosition = ore.Position
-    local direction = (orePosition - humanoidRootPart.Position).Unit
-    local distance = (orePosition - humanoidRootPart.Position).Magnitude
+-- Function to mine asteroid using your game's system
+local function mineAsteroid(plot, asteroidId)
+    -- Get the asteroid folder
+    local asteroids = plot:FindFirstChild("Asteroids")
+    if not asteroids then return false end
     
-    -- Move towards ore
+    local asteroidFolder = asteroids:FindFirstChild(asteroidId)
+    if not asteroidFolder then return false end
+    
+    -- Method 1: Use the remote function (from your original code)
+    local miningFunction = Functions:FindFirstChild("") -- Note: Your original had empty string!
+    if miningFunction then
+        local args = {plot, asteroidFolder}
+        local success = miningFunction:InvokeServer(unpack(args))
+        if success then
+            return true
+        end
+    end
+    
+    -- Method 2: Try to find the correct mining remote
+    local possibleMiningRemotes = {
+        "MineAsteroid",
+        "MineOre", 
+        "Harvest",
+        "Collect",
+        "BreakAsteroid",
+        "Mine",
+        "Extract"
+    }
+    
+    for _, remoteName in pairs(possibleMiningRemotes) do
+        local remote = Functions:FindFirstChild(remoteName)
+        if remote then
+            local success = remote:InvokeServer(plot, asteroidFolder)
+            if success then
+                return true
+            end
+        end
+    end
+    
+    -- Method 3: Use the AsteroidClient service if available
+    if AsteroidClient and AsteroidClient.Harvest then
+        AsteroidClient:Harvest(plot, asteroidFolder)
+        return true
+    end
+    
+    -- Method 4: Simulate clicking on the asteroid's primary part
+    local primaryPart = asteroidFolder:FindFirstChild("Primary")
+    if primaryPart then
+        -- Check for ClickDetector
+        local clickDetector = primaryPart:FindFirstChildOfClass("ClickDetector")
+        if clickDetector then
+            clickDetector:Click()
+            return true
+        end
+        
+        -- Check for proximity prompt
+        local proximityPrompt = primaryPart:FindFirstChildOfClass("ProximityPrompt")
+        if proximityPrompt then
+            proximityPrompt:Prompt(player)
+            return true
+        end
+    end
+    
+    return false
+end
+
+-- Function to walk to asteroid
+local function moveToPosition(targetPos)
     local humanoid = character:FindFirstChildOfClass("Humanoid")
-    if humanoid then
-        humanoid:MoveTo(orePosition)
+    if not humanoid then return end
+    
+    local distance = (targetPos - humanoidRootPart.Position).Magnitude
+    
+    if distance > 5 then
+        humanoid:MoveTo(targetPos)
         
         -- Wait until close enough or timeout
-        local timeout = 5
+        local timeout = 3
         local startTime = tick()
         
-        while tick() - startTime < timeout and distance > 5 do
-            distance = (orePosition - humanoidRootPart.Position).Magnitude
-            if distance > 5 then
-                humanoid:MoveTo(orePosition)
+        while tick() - startTime < timeout do
+            local newDistance = (targetPos - humanoidRootPart.Position).Magnitude
+            if newDistance <= 5 then
+                break
             end
+            humanoid:MoveTo(targetPos)
             task.wait(0.1)
         end
     end
 end
 
--- Function to equip mining tool
-local function equipTool()
-    if not miningTool then return false end
-    
-    -- Check if tool is already equipped
-    if character:FindFirstChild(miningTool.Name) then
-        return true
-    end
-    
-    -- Move tool from backpack to character
-    miningTool.Parent = character
-    task.wait(TOOL_EQUIP_DELAY)
-    
-    return character:FindFirstChild(miningTool.Name) ~= nil
-end
-
--- Function to mine ore
-local function mineOre(ore, plot, oreId)
-    -- Equip mining tool
-    if miningTool and not equipTool() then
-        warn("Failed to equip mining tool!")
-        return false
-    end
-    
-    -- Attempt to mine the ore
-    local success = false
-    
-    -- Try different mining methods based on your game's system
-    
-    -- Method 1: Using the communication function (from your example)
-    local communication = ReplicatedStorage:FindFirstChild("Communication")
-    if communication then
-        local functions = communication:FindFirstChild("Functions")
-        if functions then
-            local mineFunction = functions:FindFirstChild("MineOre") or functions:FindFirstChild("Mine")
-            if mineFunction then
-                local args = {plot, ore}
-                success = mineFunction:InvokeServer(unpack(args))
-                if success then
-                    task.wait(MINE_DELAY)
-                    return true
-                end
-            end
-        end
-    end
-    
-    -- Method 2: Using click detection
-    local tool = character:FindFirstChildOfClass("Tool")
-    if tool then
-        -- Activate tool
-        tool:Activate()
-        task.wait(0.1)
-        
-        -- Check if ore has health or clickable property
-        local clickDetector = ore:FindFirstChildOfClass("ClickDetector")
-        if clickDetector then
-            clickDetector:Click()
-            success = true
-        elseif ore:IsA("BasePart") then
-            -- Simulate clicking on the ore
-            local mouse = player:GetMouse()
-            if mouse then
-                -- For older scripts that require mouse
-                -- You may need to fire a remote event
-            end
-        end
-    end
-    
-    task.wait(MINE_DELAY)
-    return success
-end
-
--- Function to check if ore still exists
-local function oreExists(ore)
-    return ore and ore.Parent ~= nil
-end
-
 -- Main mining loop
+local isMining = true
+local currentTarget = nil
+
 local function startMining()
-    print("Auto Miner Started!")
+    print("Auto Miner Started! Looking for asteroids...")
     
-    while task.wait(CHECK_INTERVAL) do
-        -- Get active plot
-        local plot = getActivePlot()
+    while isMining and task.wait(CHECK_INTERVAL) do
+        -- Get player's plot
+        local plot = getPlayerPlot()
         if not plot then
             task.wait(1)
             continue
         end
         
-        -- Find all ores in plot
-        local ores = findOresInPlot(plot)
-        if #ores == 0 then
-            task.wait(1)
+        -- Get all asteroids in plot
+        local asteroids = getAsteroidsInPlot(plot)
+        if #asteroids == 0 then
+            -- No asteroids found, wait and check again
+            task.wait(0.5)
             continue
         end
         
-        -- Find closest ore
-        local closestOre, distance = getClosestOre(ores, humanoidRootPart.Position)
+        -- Find closest asteroid
+        local closest, distance = getClosestAsteroid(asteroids)
         
-        if closestOre then
-            -- Move to ore if too far
-            if distance > 8 then
-                moveToOre(closestOre)
+        if closest then
+            -- Check if asteroid still exists
+            if not closest.folder or not closest.folder.Parent then
+                task.wait(0.1)
+                continue
             end
             
-            -- Mine the ore
-            local mined = mineOre(closestOre, plot)
+            -- Move to asteroid if needed
+            if distance > 6 then
+                moveToPosition(closest.part.Position)
+            end
+            
+            -- Mine the asteroid
+            local mined = mineAsteroid(plot, closest.id)
             
             if mined then
-                print("Mined ore:", closestOre.Name)
+                print("Mining asteroid:", closest.id)
+                task.wait(MINE_DELAY)
+            else
+                -- If mining failed, try a different approach
+                task.wait(0.3)
             end
-            
-            -- Small delay before next mining attempt
+        else
+            -- No asteroids in range, wait a bit
             task.wait(0.2)
         end
     end
@@ -231,24 +239,23 @@ end
 
 -- Function to stop mining
 local function stopMining()
+    isMining = false
     print("Auto Miner Stopped")
-    -- You can add cleanup code here if needed
 end
 
 -- Start mining
 startMining()
 
--- Optional: Toggle mining with a key (press 'M' to stop/start)
-local isMining = true
+-- Toggle mining with 'M' key
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     
     if input.KeyCode == Enum.KeyCode.M then
-        isMining = not isMining
         if isMining then
-            startMining()
-        else
             stopMining()
+        else
+            isMining = true
+            task.spawn(startMining)
         end
     end
 end)
@@ -257,15 +264,13 @@ end)
 player.CharacterAdded:Connect(function(newCharacter)
     character = newCharacter
     humanoidRootPart = character:WaitForChild("HumanoidRootPart")
-    
-    -- Find mining tool again
-    miningTool = nil
-    for _, tool in pairs(player.Backpack:GetChildren()) do
-        if tool:IsA("Tool") and (tool.Name:lower():find("pick") or tool.Name:lower():find("drill") or tool.Name:lower():find("miner")) then
-            miningTool = tool
-            break
-        end
-    end
-    
     task.wait(1)
 end)
+
+-- Print available remotes for debugging
+print("Available mining functions:")
+for _, child in pairs(Functions:GetChildren()) do
+    if child.Name ~= "" then
+        print(" - " .. child.Name)
+    end
+end
