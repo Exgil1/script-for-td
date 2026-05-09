@@ -39,6 +39,7 @@ local challengeDurations = {
     ["Insane Challenge"] = 22 * 60,
     ["Pro Challenge"] = 20 * 60,
     ["Godly Challenge"] = 20 * 60,
+    ["Dragon Challenge"] = 20 * 60,
 }
 
 --// BUILD STRUCTURES
@@ -66,7 +67,8 @@ local items = {
 local allChallenges = {
     {name = "Insane Challenge", id = "Insane Challenge"},
     {name = "Pro Challenge", id = "Pro Challenge"},
-    {name = "Godly Challenge", id = "Godly Challenge"}
+    {name = "Godly Challenge", id = "Godly Challenge"},
+    {name = "Dragon Challenge", id = "Dragon Challenge"}
 }
 
 --// GLOBAL VARIABLES
